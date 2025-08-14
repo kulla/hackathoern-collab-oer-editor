@@ -1,0 +1,13 @@
+version: 2
+# See https://github.com/dependabot/dependabot-core/issues/6528#issuecomment-2722336637
+enable-beta-ecosystems: true
+updates:
+  - package-ecosystem: "bun"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

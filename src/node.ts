@@ -77,6 +77,10 @@ class StateManager {
   read(): EditorNode {
     return getHandler(this.rootKey.forType).read(this.state, this.rootKey)
   }
+
+  getState(): ReadonlyState {
+    return this.state
+  }
 }
 
 // State management for an editor structure

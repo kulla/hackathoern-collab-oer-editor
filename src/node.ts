@@ -65,6 +65,8 @@ interface NodeHandler<E extends EditorNode> {
 class StateManager {
   private readonly state = new WritableState()
   private readonly rootKey: Key<EditorNode>
+  private updateListeners: (() => void)[] = []
+  private depth = 0
 
   constructor(initialContent: EditorNode) {
     this.rootKey = getHandler(initialContent.type).insert(
@@ -72,6 +74,26 @@ class StateManager {
       initialContent,
       null,
     )
+  }
+
+  addUpdateListener(listener: () => void): void {
+    this.updateListeners.push(listener)
+  }
+
+  removeUpdateListener(listener: () => void): void {
+    this.updateListeners = this.updateListeners.filter((l) => l !== listener)
+  }
+
+  update(updateFn: (state: WritableState) => void): void {
+    this.depth += 1
+    updateFn(this.state)
+    this.depth -= 1
+
+    if (this.depth === 0) {
+      for (const listener of this.updateListeners) {
+        listener()
+      }
+    }
   }
 
   read(): EditorNode {

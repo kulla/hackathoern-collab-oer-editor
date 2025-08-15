@@ -1,8 +1,8 @@
 class ReadonlyState {
-  protected map = new Map<Key['value'], Entry>()
+  protected entries = new Map<Key['value'], Entry>()
 
-  get<E extends EditorNode>(key: Key<E>): Entry<E> {
-    const entry = this.map.get(key.value) as Entry<E> | undefined
+  getEntry<E extends EditorNode>(key: Key<E>): Entry<E> {
+    const entry = this.entries.get(key.value) as Entry<E> | undefined
 
     // To-Do: Add assert logic
     if (!entry) {
@@ -12,8 +12,8 @@ class ReadonlyState {
     return entry
   }
 
-  entries(): [Key['value'], Entry][] {
-    return Array.from(this.map.entries())
+  getEntries(): [Key['value'], Entry][] {
+    return Array.from(this.entries.entries())
   }
 }
 
@@ -30,13 +30,13 @@ class WritableState extends ReadonlyState {
     key: Key<E>,
     updateValue: (e: EntryValue<E>) => EntryValue<E>,
   ) {
-    const entry = this.get(key)
+    const entry = this.getEntry(key)
     const updatedValue = updateValue(entry.value)
     this.set(key, { ...entry, value: updatedValue })
   }
 
   private set<E extends EditorNode>(key: Key<E>, entry: Entry<E>) {
-    this.map.set(key.value, entry)
+    this.entries.set(key.value, entry)
   }
 
   private generateKey<E extends EditorNode = EditorNode>({

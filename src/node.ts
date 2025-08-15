@@ -1,3 +1,5 @@
+// Handlers for managing editor nodes
+
 const ContentHandler: NodeHandler<Content> = {
   insert(state, { value: children, type: forType }, parent) {
     return state.insert({

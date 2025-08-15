@@ -10,6 +10,13 @@ const ContentHandler: NodeHandler<Content> = {
       },
     })
   },
+  read(state, key) {
+    const { forType: type, value } = state.getEntry(key)
+    return {
+      type,
+      value: value.map((childKey) => ParagraphHandler.read(state, childKey)),
+    }
+  },
 }
 
 const ParagraphHandler: NodeHandler<Paragraph> = {
@@ -20,16 +27,25 @@ const ParagraphHandler: NodeHandler<Paragraph> = {
       createValue: (key) => TextHandler.insert(state, child, key),
     })
   },
+  read(state, key) {
+    const { forType: type, value } = state.getEntry(key)
+    return { type, value: TextHandler.read(state, value) }
+  },
 }
 
 const TextHandler: NodeHandler<TextValue> = {
   insert(state, { value, type: forType }, parent) {
     return state.insert({ forType, parent, createValue: () => value })
   },
+  read(state, key) {
+    const { forType: type, value } = state.getEntry(key)
+    return { type, value }
+  },
 }
 
 interface NodeHandler<E extends EditorNode> {
   insert(state: WritableState, node: E, parent: ParentKey): Key<E>
+  read(state: ReadonlyState, key: Key<E>): E
 }
 
 // State management for an editor structure

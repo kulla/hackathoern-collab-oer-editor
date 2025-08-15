@@ -60,6 +60,25 @@ interface NodeHandler<E extends EditorNode> {
   read(state: ReadonlyState, key: Key<E>): E
 }
 
+// State manager
+
+class StateManager {
+  private readonly state = new WritableState()
+  private readonly rootKey: Key<EditorNode>
+
+  constructor(initialContent: EditorNode) {
+    this.rootKey = getHandler(initialContent.type).insert(
+      this.state,
+      initialContent,
+      null,
+    )
+  }
+
+  read(): EditorNode {
+    return getHandler(this.rootKey.forType).read(this.state, this.rootKey)
+  }
+}
+
 // State management for an editor structure
 
 class ReadonlyState {

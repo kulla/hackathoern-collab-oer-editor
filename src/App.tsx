@@ -1,6 +1,20 @@
+import { useRef, useState, useSyncExternalStore } from 'react'
 import './App.css'
 
+const initialContent: Content = {
+  type: 'content',
+  value: [
+    {
+      type: 'paragraph',
+      value: { type: 'text', value: 'Welcome this is an editor example.' },
+    },
+    { type: 'paragraph', value: { type: 'text', value: 'Hello World' } },
+  ],
+}
+
 export default function App() {
+  const { manager } = useStateManager(initialContent)
+
   return (
     <main className="prose p-10">
       <h1>Rsbuild with React</h1>

@@ -28,7 +28,7 @@ class WritableState extends ReadonlyState {
 
   update<E extends EditorNode>(
     key: Key<E>,
-    updateValue: (e: EntryValue<E['value']>) => EntryValue<E['value']>,
+    updateValue: (e: EntryValue<E>) => EntryValue<E>,
   ) {
     const entry = this.get(key)
     const updatedValue = updateValue(entry.value)
@@ -55,12 +55,13 @@ type Entry<E extends EditorNode = EditorNode> = UnstoredEntry<E> & {
 type UnstoredEntry<E extends EditorNode = EditorNode> = TypedValueFor<
   E['type'],
   'entry',
-  EntryValue<E['value']>
+  EntryValue<E>
 > & {
   parent: Key<EditorNode> | null
 }
 
-type EntryValue<V extends EditorNode['value']> = V extends EditorNode
+type EntryValue<E extends EditorNode> = ComputedEntryValue<E['value']>
+type ComputedEntryValue<V extends EditorNode['value']> = V extends EditorNode
   ? Key<V>
   : V extends string | number | boolean
     ? V

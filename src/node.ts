@@ -1,3 +1,5 @@
+// State management for an editor structure
+
 class ReadonlyState {
   protected entries = new Map<Key['value'], Entry>()
 

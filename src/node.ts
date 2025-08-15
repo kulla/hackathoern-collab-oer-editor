@@ -1,3 +1,11 @@
+const ParagraphHandler: NodeHandler<Paragraph> = {
+  insert(state, { value: child, type: forType }, parent) {
+    const childKey = TextHandler.insert(state, child, null)
+
+    return state.insert({ forType, value: childKey, parent })
+  },
+}
+
 const TextHandler: NodeHandler<TextValue> = {
   insert(state, { value, type: forType }, parent) {
     return state.insert({ forType, value, parent })

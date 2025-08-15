@@ -15,7 +15,7 @@ const TextHandler: NodeHandler<TextValue> = {
 }
 
 interface NodeHandler<E extends EditorNode> {
-  insert(state: WritableState, node: E, parent: Key<EditorNode> | null): Key<E>
+  insert(state: WritableState, node: E, parent: ParentKey): Key<E>
 }
 
 // State management for an editor structure

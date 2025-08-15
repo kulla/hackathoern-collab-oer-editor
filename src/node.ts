@@ -56,8 +56,8 @@ interface Entry<E extends EditorNode = EditorNode> extends UnstoredEntry<E> {
   key: Key<E>
 }
 interface UnstoredEntry<E extends EditorNode = EditorNode> {
-  forType: E['type'],
-  parent: Key<EditorNode> | null
+  forType: E['type']
+  parent: ParentKey
   value: EntryValue<E>
 }
 
@@ -74,6 +74,7 @@ type ComputedEntryValue<V extends EditorNode['value']> = V extends EditorNode
         ? { [K in keyof V]: V[K] extends EditorNode ? Key<V[K]> : never }
         : never
 
+type ParentKey = Key<EditorNode> | null
 type Key<E extends EditorNode = EditorNode> = TypedValueFor<
   E['type'],
   'key',

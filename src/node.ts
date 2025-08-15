@@ -1,14 +1,16 @@
 const ParagraphHandler: NodeHandler<Paragraph> = {
   insert(state, { value: child, type: forType }, parent) {
-    const childKey = TextHandler.insert(state, child, null)
-
-    return state.insert({ forType, value: childKey, parent })
+    return state.insert({
+      forType,
+      parent,
+      createValue: (key) => TextHandler.insert(state, child, key),
+    })
   },
 }
 
 const TextHandler: NodeHandler<TextValue> = {
   insert(state, { value, type: forType }, parent) {
-    return state.insert({ forType, value, parent })
+    return state.insert({ forType, parent, createValue: () => value })
   },
 }
 
@@ -40,9 +42,16 @@ class ReadonlyState {
 class WritableState extends ReadonlyState {
   private lastKey = -1
 
-  insert<E extends EditorNode>(entry: UnstoredEntry<E>): Key<E> {
-    const key = this.generateKey(entry)
-    this.set(key, { ...entry, type: 'entry', key })
+  insert<E extends EditorNode>({
+    forType,
+    parent,
+    createValue,
+  }: UnstoredEntry<E>): Key<E> {
+    const key = this.generateKey(forType)
+    const value = createValue(key)
+
+    this.set(key, { type: 'entry', key, forType, parent, value })
+
     return key
   }
 
@@ -59,9 +68,9 @@ class WritableState extends ReadonlyState {
     this.entries.set(key.value, entry)
   }
 
-  private generateKey<E extends EditorNode = EditorNode>({
-    forType,
-  }: UnstoredEntry<E>): Key<E> {
+  private generateKey<E extends EditorNode = EditorNode>(
+    forType: E['type'],
+  ): Key<E> {
     this.lastKey += 1
     return { type: 'key', forType, value: this.lastKey.toString() }
   }
@@ -69,15 +78,18 @@ class WritableState extends ReadonlyState {
 
 // Description for the internal structure of the editor
 
-interface Entry<E extends EditorNode = EditorNode> extends UnstoredEntry<E> {
-  type: 'entry'
+type Entry<E extends EditorNode = EditorNode> = TypedValueFor<
+  E['type'],
+  'entry',
+  EntryValue<E>
+> & {
   key: Key<E>
-}
-interface UnstoredEntry<E extends EditorNode = EditorNode> {
-  forType: E['type']
   parent: ParentKey
-  value: EntryValue<E>
 }
+type UnstoredEntry<E extends EditorNode = EditorNode> = Omit<
+  Entry<E>,
+  'key' | 'value' | 'type'
+> & { createValue: (key: Key<E>) => EntryValue<E> }
 
 type EntryValue<E extends EditorNode> = ComputedEntryValue<E['value']>
 type ComputedEntryValue<V extends EditorNode['value']> = V extends EditorNode

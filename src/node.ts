@@ -24,7 +24,7 @@ class WritableState extends ReadonlyState {
 
   insert<E extends EditorNode>(entry: UnstoredEntry<E>): Key<E> {
     const key = this.generateKey(entry)
-    this.set(key, { ...entry, key })
+    this.set(key, { ...entry, type: 'entry', key })
     return key
   }
 
@@ -51,15 +51,14 @@ class WritableState extends ReadonlyState {
 
 // Description for the internal structure of the editor
 
-type Entry<E extends EditorNode = EditorNode> = UnstoredEntry<E> & {
+interface Entry<E extends EditorNode = EditorNode> extends UnstoredEntry<E> {
+  type: 'entry'
   key: Key<E>
 }
-type UnstoredEntry<E extends EditorNode = EditorNode> = TypedValueFor<
-  E['type'],
-  'entry',
-  EntryValue<E>
-> & {
+interface UnstoredEntry<E extends EditorNode = EditorNode> {
+  forType: E['type'],
   parent: Key<EditorNode> | null
+  value: EntryValue<E>
 }
 
 type EntryValue<E extends EditorNode> = ComputedEntryValue<E['value']>

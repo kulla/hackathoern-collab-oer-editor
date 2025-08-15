@@ -1,3 +1,17 @@
+const ContentHandler: NodeHandler<Content> = {
+  insert(state, { value: children, type: forType }, parent) {
+    return state.insert({
+      forType,
+      parent,
+      createValue: (key) => {
+        return children.map((child) =>
+          ParagraphHandler.insert(state, child, key),
+        )
+      },
+    })
+  },
+}
+
 const ParagraphHandler: NodeHandler<Paragraph> = {
   insert(state, { value: child, type: forType }, parent) {
     return state.insert({

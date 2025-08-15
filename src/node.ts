@@ -20,11 +20,28 @@ class ReadonlyState {
 class WritableState extends ReadonlyState {
   private lastKey = -1
 
-  set<E extends EditorNode>(key: Key<E>, entry: Entry<E>) {
+  insert<E extends EditorNode>(entry: UnstoredEntry<E>): Key<E> {
+    const key = this.generateKey(entry)
+    this.set(key, { ...entry, key })
+    return key
+  }
+
+  update<E extends EditorNode>(
+    key: Key<E>,
+    updateValue: (e: EntryValue<E['value']>) => EntryValue<E['value']>,
+  ) {
+    const entry = this.get(key)
+    const updatedValue = updateValue(entry.value)
+    this.set(key, { ...entry, value: updatedValue })
+  }
+
+  private set<E extends EditorNode>(key: Key<E>, entry: Entry<E>) {
     this.map.set(key.value, entry)
   }
 
-  generateKey<E extends EditorNode = EditorNode>({ type: forType }: E): Key<E> {
+  private generateKey<E extends EditorNode = EditorNode>({
+    forType,
+  }: UnstoredEntry<E>): Key<E> {
     this.lastKey += 1
     return { type: 'key', forType, value: this.lastKey.toString() }
   }
@@ -32,12 +49,14 @@ class WritableState extends ReadonlyState {
 
 // Description for the internal structure of the editor
 
-type Entry<E extends EditorNode = EditorNode> = TypedValueFor<
+type Entry<E extends EditorNode = EditorNode> = UnstoredEntry<E> & {
+  key: Key<E>
+}
+type UnstoredEntry<E extends EditorNode = EditorNode> = TypedValueFor<
   E['type'],
   'entry',
   EntryValue<E['value']>
 > & {
-  key: Key<E>
   parent: Key<EditorNode> | null
 }
 

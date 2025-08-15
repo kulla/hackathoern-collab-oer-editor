@@ -1,6 +1,5 @@
-class EntryMap<_S extends State = State> {
-  private lastKey = -1
-  private map = new Map<Key['value'], Entry>()
+class ReadonlyState {
+  protected map = new Map<Key['value'], Entry>()
 
   get<E extends EditorNode>(key: Key<E>): Entry<E> {
     const entry = this.map.get(key.value) as Entry<E> | undefined
@@ -16,32 +15,20 @@ class EntryMap<_S extends State = State> {
   entries(): [Key['value'], Entry][] {
     return Array.from(this.map.entries())
   }
+}
 
-  set<E extends EditorNode>(
-    this: EntryMap<Writable>,
-    key: Key<E>,
-    entry: Entry<E>,
-  ) {
+class WritableState extends ReadonlyState {
+  private lastKey = -1
+
+  set<E extends EditorNode>(key: Key<E>, entry: Entry<E>) {
     this.map.set(key.value, entry)
   }
 
-  generateKey<E extends EditorNode = EditorNode>(
-    this: EntryMap<Writable>,
-    { type: forType }: E,
-  ): Key<E> {
+  generateKey<E extends EditorNode = EditorNode>({ type: forType }: E): Key<E> {
     this.lastKey += 1
     return { type: 'key', forType, value: this.lastKey.toString() }
   }
 }
-
-const a = new EntryMap()
-const b = a as EntryMap<Immutable>
-
-b.generateKey({ type: 'text', value: '' }) // This will error because `b` is Immutable
-
-type Immutable = 'readonly'
-type Writable = 'editable'
-type State = Immutable | Writable
 
 // Description for the internal structure of the editor
 

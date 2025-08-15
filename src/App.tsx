@@ -19,7 +19,72 @@ export default function App() {
     <main className="prose p-10">
       <h1>Rsbuild with React</h1>
       <p>Start building amazing things with Rsbuild.</p>
+      <DebugPanel
+        labels={
+          {
+            state: 'External editor state',
+            entities: 'Internal editor state',
+          } as const
+        }
+        showOnStartup={{ state: true, entities: true }}
+        getCurrentValue={{
+          state: () => JSON.stringify(manager.read(), undefined, 2),
+          entities: () =>
+            manager
+              .getState()
+              .getEntries()
+              .map(([key, entry]) => `${key}: ${JSON.stringify(entry)}`)
+              .join('\n'),
+        }}
+      />
     </main>
+  )
+}
+
+interface DebugPanelProps<T extends string> {
+  labels: Record<T, string>
+  getCurrentValue: Record<T, () => string>
+  showOnStartup: Record<T, boolean>
+}
+
+function DebugPanel<T extends string>({
+  labels,
+  getCurrentValue,
+  showOnStartup,
+}: DebugPanelProps<T>) {
+  const [show, setShow] = useState(showOnStartup)
+
+  const options = Object.keys(labels) as T[]
+
+  return (
+    <>
+      <h2>Debug Panel</h2>
+      <fieldset className="fieldset">
+        <legend className="fieldset-legend">Options</legend>
+        {options.map((option) => (
+          <label key={option} className="label">
+            <input
+              type="checkbox"
+              className="toggle"
+              checked={show[option]}
+              onChange={() =>
+                setShow((prev) => ({ ...prev, [option]: !prev[option] }))
+              }
+            />{' '}
+            {labels[option]}
+          </label>
+        ))}
+      </fieldset>
+      <div className="flex gap-4">
+        {options.map((option) =>
+          show[option] ? (
+            <pre key={option} className="max-w-xl h-132">
+              {getCurrentValue[option]()}
+            </pre>
+          ) : null,
+        )}
+      </div>
+    </>
   )
 }
 

@@ -73,6 +73,30 @@ interface NodeHandler<E extends EditorNode> {
 
 // State manager
 
+function useStateManager(initialContent: EditorNode) {
+  const managerRef = useRef({ manager: new StateManager(initialContent) })
+  const { manager } = managerRef.current
+  const lastUpdateCount = useRef(managerRef.current.manager.getUpdateCount())
+
+  return useSyncExternalStore(
+    (listener) => {
+      manager.addUpdateListener(listener)
+
+      return () => manager.removeUpdateListener(listener)
+    },
+    () => {
+      if (lastUpdateCount.current === manager.getUpdateCount()) {
+        return managerRef.current
+      }
+
+      // Create a new object so that React rerenders
+      managerRef.current = { manager }
+
+      return managerRef.current
+    },
+  )
+}
+
 class StateManager {
   private readonly state = new WritableState()
   private readonly rootKey: Key<EditorNode>

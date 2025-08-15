@@ -1,3 +1,13 @@
+const TextHandler: NodeHandler<TextValue> = {
+  insert(state, { value, type: forType }, parent) {
+    return state.insert({ forType, value, parent })
+  },
+}
+
+interface NodeHandler<E extends EditorNode> {
+  insert(state: WritableState, node: E, parent: Key<EditorNode> | null): Key<E>
+}
+
 // State management for an editor structure
 
 class ReadonlyState {

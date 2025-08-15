@@ -45,6 +45,16 @@ const TextHandler: NodeHandler<TextValue> = {
   },
 }
 
+const handlers: Record<EditorNode['type'], NodeHandler<EditorNode>> = {
+  content: ContentHandler,
+  paragraph: ParagraphHandler,
+  text: TextHandler,
+}
+
+function getHandler<E extends EditorNode>(type: E['type']): NodeHandler<E> {
+  return handlers[type] as NodeHandler<E>
+}
+
 interface NodeHandler<E extends EditorNode> {
   insert(state: WritableState, node: E, parent: ParentKey): Key<E>
   read(state: ReadonlyState, key: Key<E>): E

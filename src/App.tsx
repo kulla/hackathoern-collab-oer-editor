@@ -22,7 +22,12 @@ export default function App() {
   return (
     <main className="prose p-10">
       <h1>Editor:</h1>
-      <section className="editor">
+      <section
+        className="editor"
+        contentEditable
+        suppressContentEditableWarning
+        spellCheck={false}
+      >
         {getHandler(rootEntry.forType).render(manager.getState(), rootEntry)}
       </section>
       <DebugPanel

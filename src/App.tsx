@@ -289,14 +289,12 @@ const TextHandler: NodeHandler<TextValue> = {
   },
   onKeyDown(manager, node, event, { start, end }) {
     if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
-      if (isEqual(start, end) && 'offset' in start) {
+      if ('offset' in start && 'offset' in end) {
         manager.update((state) => {
           state.update(
             node.key,
             (prev) =>
-              prev.slice(0, start.offset) +
-              event.key +
-              prev.slice(start.offset),
+              prev.slice(0, start.offset) + event.key + prev.slice(end.offset),
           )
           state.setCursor({
             start: { ...start, offset: start.offset + 1 },

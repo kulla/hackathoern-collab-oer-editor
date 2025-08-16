@@ -1,5 +1,6 @@
 import { html as beautifyHtml } from 'js-beautify'
 import {
+  type KeyboardEvent,
   type ReactNode,
   useCallback,
   useEffect,
@@ -33,6 +34,14 @@ export default function App() {
 
       const cursor = manager.getState().getCursor()
       if (cursor == null) return
+
+      const { start, end } = cursor
+
+      if (start.key.value === end.key.value) {
+        const entry = manager.getState().getEntry(start.key)
+
+        getHandler(entry.forType).onKeyDown?.(manager, entry, event, cursor)
+      }
 
       event.preventDefault()
     },
@@ -242,6 +251,23 @@ const TextHandler: NodeHandler<TextValue> = {
       </span>
     )
   },
+  onKeyDown(manager, node, event, { start, end }) {
+    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+      if (isEqual(start, end) && 'offset' in start) {
+        manager.update((state) =>
+          state.update(
+            node.key,
+            (prev) =>
+              prev.slice(0, start.offset) +
+              event.key +
+              prev.slice(start.offset),
+          ),
+        )
+      }
+    }
+
+    return false
+  },
 }
 
 const handlers: Record<EditorNode['type'], NodeHandler<EditorNode>> = {
@@ -258,6 +284,12 @@ interface NodeHandler<E extends EditorNode> {
   insert(state: WritableState, node: E, parent: ParentKey): Key<E>
   read(state: ReadonlyState, key: Key<E>): E
   render(state: ReadonlyState, node: Entry<E>): ReactNode
+  onKeyDown?(
+    manager: StateManager,
+    node: Entry<E>,
+    event: KeyboardEvent,
+    currentSelection: Cursor,
+  ): boolean
 }
 
 // State manager

@@ -169,7 +169,12 @@ const ContentHandler: NodeHandler<Content> = {
   },
   render(state, { key, value, forType }) {
     return (
-      <div id={key.value} data-key={key.value} data-type={forType}>
+      <div
+        key={key.value}
+        id={key.value}
+        data-key={key.value}
+        data-type={forType}
+      >
         {value.map((childKey) =>
           ParagraphHandler.render(state, state.getEntry(childKey)),
         )}
@@ -192,7 +197,12 @@ const ParagraphHandler: NodeHandler<Paragraph> = {
   },
   render(state, { key, value, forType }) {
     return (
-      <p id={key.value} data-key={key.value} data-type={forType}>
+      <p
+        key={key.value}
+        id={key.value}
+        data-key={key.value}
+        data-type={forType}
+      >
         {TextHandler.render(state, state.getEntry(value))}
       </p>
     )
@@ -209,7 +219,12 @@ const TextHandler: NodeHandler<TextValue> = {
   },
   render(_, { key, value, forType }) {
     return (
-      <span id={key.value} data-key={key.value} data-type={forType}>
+      <span
+        key={key.value}
+        id={key.value}
+        data-key={key.value}
+        data-type={forType}
+      >
         {value}
       </span>
     )

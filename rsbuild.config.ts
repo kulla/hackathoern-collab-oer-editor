@@ -6,10 +6,10 @@ const mode = process.env.NODE_ENV || 'development'
 
 export default defineConfig({
   html: {
-    title: 'Prototype',
+    title: 'Editor with Plugins',
   },
   output: {
-    assetPrefix: '/rsbuild-react-bun-biome-starter-template/',
+    assetPrefix: '/2025-08-14-editor-with-plugins/',
     sourceMap: {
       js: mode === 'development' ? 'eval-source-map' : 'source-map',
       css: true,

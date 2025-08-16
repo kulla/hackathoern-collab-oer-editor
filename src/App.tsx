@@ -1,7 +1,15 @@
 import { html as beautifyHtml } from 'js-beautify'
-import { type ReactNode, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
+import { isEqual } from 'es-toolkit'
 
 const initialContent: Content = {
   type: 'content',
@@ -17,7 +25,23 @@ const initialContent: Content = {
 export default function App() {
   const { manager } = useStateManager(initialContent)
 
+  const handleSelectionChange = useCallback(() => {
+    const selection = document.getSelection()
+    const cursor = getCursor(selection)
+    if (!isEqual(cursor, manager.getState().getCursor())) {
+      manager.update((state) => state.setCursor(cursor))
+    }
+  }, [manager])
+
   const rootEntry = manager.getRootEntry()
+
+  useEffect(() => {
+    document.addEventListener('selectionchange', handleSelectionChange)
+
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange)
+    }
+  }, [handleSelectionChange])
 
   return (
     <main className="prose p-10">
@@ -34,11 +58,17 @@ export default function App() {
         labels={
           {
             html: 'HTML output',
+            selection: 'Current selection',
             state: 'External editor state',
             entities: 'Internal editor state',
           } as const
         }
-        showOnStartup={{ html: true, state: true, entities: false }}
+        showOnStartup={{
+          html: true,
+          selection: true,
+          state: true,
+          entities: false,
+        }}
         getCurrentValue={{
           html: () =>
             beautifyHtml(
@@ -49,6 +79,12 @@ export default function App() {
                 ),
               ),
               { indent_size: 2, wrap_line_length: 70 },
+            ),
+          selection: () =>
+            JSON.stringify(
+              { cursor: manager.getState().getCursor() },
+              undefined,
+              2,
             ),
           state: () => JSON.stringify(manager.read(), undefined, 2),
           entities: () =>
@@ -280,6 +316,7 @@ class StateManager {
 
 class ReadonlyState {
   protected entries = new Map<Key['value'], Entry>()
+  protected cursor: Cursor | null = null
 
   getEntry<E extends EditorNode>(key: Key<E>): Entry<E> {
     const entry = this.entries.get(key.value) as Entry<E> | undefined
@@ -294,6 +331,10 @@ class ReadonlyState {
 
   getEntries(): [Key['value'], Entry][] {
     return Array.from(this.entries.entries())
+  }
+
+  getCursor(): Cursor | null {
+    return this.cursor
   }
 }
 
@@ -320,6 +361,10 @@ class WritableState extends ReadonlyState {
     const entry = this.getEntry(key)
     const updatedValue = updateValue(entry.value)
     this.set(key, { ...entry, value: updatedValue })
+  }
+
+  setCursor(cursor: Cursor | null) {
+    this.cursor = cursor
   }
 
   private set<E extends EditorNode>(key: Key<E>, entry: Entry<E>) {

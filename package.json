@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "es-toolkit": "^1.39.9",
     "js-beautify": "^1.15.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"

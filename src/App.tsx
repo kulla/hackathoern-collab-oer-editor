@@ -334,6 +334,58 @@ class WritableState extends ReadonlyState {
   }
 }
 
+// Selection
+
+function getCursor(selection: Selection | null): Cursor | null {
+  if (selection == null || selection.rangeCount === 0) return null
+
+  const range = selection.getRangeAt(0)
+  const startPosition = getPosition(range.startContainer, range.startOffset)
+  const endPosition = getPosition(range.endContainer, range.endOffset)
+
+  if (startPosition == null || endPosition == null) return null
+
+  return {
+    start: startPosition,
+    end: endPosition,
+  }
+}
+
+function getPosition(
+  node: Node | null,
+  offset: number | null,
+): Position | null {
+  if (node == null || offset == null) return null
+
+  const htmlNode = node instanceof HTMLElement ? node : node.parentElement
+
+  if (htmlNode == null) return null
+
+  const { key, type } = htmlNode.dataset
+
+  if (!isKeyValue(key) || !isType(type)) return null
+
+  return type === 'text'
+    ? { key: { type: 'key', forType: 'text', value: key }, offset }
+    : { key: { type: 'key', forType: type, value: key } }
+}
+
+interface Cursor {
+  start: Position
+  end: Position
+}
+
+type Position = TextPosition | NodePosition
+
+interface TextPosition {
+  key: Key<TextValue>
+  offset: number
+}
+
+interface NodePosition {
+  key: Key<Exclude<EditorNode, TextValue>>
+}
+
 // Description for the internal structure of the editor
 
 type Entry<E extends EditorNode = EditorNode> = TypedValueFor<
@@ -368,6 +420,14 @@ type Key<E extends EditorNode = EditorNode> = TypedValueFor<
   'key',
   string
 >
+
+function isType(value: unknown): value is EditorNode['type'] {
+  return typeof value === 'string' && Object.keys(handlers).includes(value)
+}
+
+function isKeyValue(value: unknown): value is Key['value'] {
+  return typeof value === 'string' && Number.isInteger(Number(value))
+}
 
 // Description of the external JSON for the editor structure
 

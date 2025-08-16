@@ -4,6 +4,7 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -26,6 +27,7 @@ const initialContent: Content = {
 export default function App() {
   const { manager } = useStateManager(initialContent)
   const rootEntry = manager.getRootEntry()
+  const cursor = manager.getState().getCursor()
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
@@ -63,6 +65,40 @@ export default function App() {
       document.removeEventListener('selectionchange', handleSelectionChange)
     }
   }, [handleSelectionChange])
+
+  useLayoutEffect(() => {
+    const selection = document.getSelection()
+
+    if (selection == null) return
+    if (isEqual(cursor, getCursor(selection))) return
+
+    selection.removeAllRanges()
+
+    if (cursor == null) return
+
+    const { start, end } = cursor
+
+    const startNode = document.getElementById(start.key.value)
+    const endNode = document.getElementById(end.key.value)
+
+    if (startNode == null || endNode == null) return
+
+    const range = document.createRange()
+
+    if ('offset' in start) {
+      range.setStart(startNode.firstChild ?? startNode, start.offset)
+    } else {
+      range.setStart(startNode, 0)
+    }
+
+    if ('offset' in end) {
+      range.setEnd(endNode.firstChild ?? endNode, end.offset)
+    } else {
+      range.setEnd(endNode, 0)
+    }
+
+    selection.addRange(range)
+  }, [cursor])
 
   return (
     <main className="prose p-10">
@@ -254,15 +290,19 @@ const TextHandler: NodeHandler<TextValue> = {
   onKeyDown(manager, node, event, { start, end }) {
     if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
       if (isEqual(start, end) && 'offset' in start) {
-        manager.update((state) =>
+        manager.update((state) => {
           state.update(
             node.key,
             (prev) =>
               prev.slice(0, start.offset) +
               event.key +
               prev.slice(start.offset),
-          ),
-        )
+          )
+          state.setCursor({
+            start: { ...start, offset: start.offset + 1 },
+            end: { ...start, offset: start.offset + 1 },
+          })
+        })
       }
     }
 

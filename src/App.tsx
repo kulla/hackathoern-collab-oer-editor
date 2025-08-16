@@ -250,9 +250,8 @@ interface NodeHandler<E extends EditorNode> {
 // State manager
 
 function useStateManager(initialContent: EditorNode) {
-  const managerRef = useRef({ manager: new StateManager(initialContent) })
-  const { manager } = managerRef.current
-  const lastUpdateCount = useRef(managerRef.current.manager.getUpdateCount())
+  const manager = useRef(new StateManager(initialContent)).current
+  const lastReturn = useRef({ manager, updateCount: manager.getUpdateCount() })
 
   return useSyncExternalStore(
     (listener) => {
@@ -261,14 +260,13 @@ function useStateManager(initialContent: EditorNode) {
       return () => manager.removeUpdateListener(listener)
     },
     () => {
-      if (lastUpdateCount.current === manager.getUpdateCount()) {
-        return managerRef.current
+      if (lastReturn.current.updateCount === manager.getUpdateCount()) {
+        return lastReturn.current
       }
 
-      // Create a new object so that React rerenders
-      managerRef.current = { manager }
+      lastReturn.current = { manager, updateCount: manager.getUpdateCount() }
 
-      return managerRef.current
+      return lastReturn.current
     },
   )
 }

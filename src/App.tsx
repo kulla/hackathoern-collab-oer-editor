@@ -15,10 +15,14 @@ const initialContent: Content = {
 export default function App() {
   const { manager } = useStateManager(initialContent)
 
+  const rootEntry = manager.getRootEntry()
+
   return (
     <main className="prose p-10">
-      <h1>Rsbuild with React</h1>
-      <p>Start building amazing things with Rsbuild.</p>
+      <h1>Editor:</h1>
+      <section className="editor">
+        {getHandler(rootEntry.forType).render(manager.getState(), rootEntry)}
+      </section>
       <DebugPanel
         labels={
           {
@@ -109,6 +113,15 @@ const ContentHandler: NodeHandler<Content> = {
       value: value.map((childKey) => ParagraphHandler.read(state, childKey)),
     }
   },
+  render(state, { key, value, forType }) {
+    return (
+      <div id={key.value} data-key={key.value} data-type={forType}>
+        {value.map((childKey) =>
+          ParagraphHandler.render(state, state.getEntry(childKey)),
+        )}
+      </div>
+    )
+  },
 }
 
 const ParagraphHandler: NodeHandler<Paragraph> = {
@@ -123,6 +136,13 @@ const ParagraphHandler: NodeHandler<Paragraph> = {
     const { forType: type, value } = state.getEntry(key)
     return { type, value: TextHandler.read(state, value) }
   },
+  render(state, { key, value, forType }) {
+    return (
+      <p id={key.value} data-key={key.value} data-type={forType}>
+        {TextHandler.render(state, state.getEntry(value))}
+      </p>
+    )
+  },
 }
 
 const TextHandler: NodeHandler<TextValue> = {
@@ -132,6 +152,13 @@ const TextHandler: NodeHandler<TextValue> = {
   read(state, key) {
     const { forType: type, value } = state.getEntry(key)
     return { type, value }
+  },
+  render(_, { key, value, forType }) {
+    return (
+      <span id={key.value} data-key={key.value} data-type={forType}>
+        {value}
+      </span>
+    )
   },
 }
 
@@ -148,6 +175,7 @@ function getHandler<E extends EditorNode>(type: E['type']): NodeHandler<E> {
 interface NodeHandler<E extends EditorNode> {
   insert(state: WritableState, node: E, parent: ParentKey): Key<E>
   read(state: ReadonlyState, key: Key<E>): E
+  render(state: ReadonlyState, node: Entry<E>): ReactNode
 }
 
 // State manager
@@ -223,6 +251,10 @@ class StateManager {
 
   getState(): ReadonlyState {
     return this.state
+  }
+
+  getRootEntry(): Entry<EditorNode> {
+    return this.state.getEntry(this.rootKey)
   }
 }
 

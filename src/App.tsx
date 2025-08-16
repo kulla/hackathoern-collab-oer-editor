@@ -502,13 +502,15 @@ function getPosition(
 
   if (htmlNode == null) return null
 
-  const { key, type } = htmlNode.dataset
+  const { key: keyValue, type } = htmlNode.dataset
 
-  if (!isKeyValue(key) || !isType(type)) return null
+  if (!isKeyValue(keyValue) || !isType(type)) return null
 
-  return type === 'text'
-    ? { key: { type: 'key', forType: 'text', value: key }, offset }
-    : { key: { type: 'key', forType: type, value: key } }
+  const key: Key = { type: 'key', forType: type, value: keyValue }
+
+  return key.forType === 'text'
+    ? ({ key, offset } as TextPosition)
+    : ({ key } as NodePosition)
 }
 
 interface Cursor {

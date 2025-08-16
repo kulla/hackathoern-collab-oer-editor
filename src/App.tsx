@@ -26,6 +26,19 @@ export default function App() {
   const { manager } = useStateManager(initialContent)
   const rootEntry = manager.getRootEntry()
 
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLElement>) => {
+      if (event.key.startsWith('Arrow')) return
+      if (event.ctrlKey && event.key === 'r') return
+
+      const cursor = manager.getState().getCursor()
+      if (cursor == null) return
+
+      event.preventDefault()
+    },
+    [manager],
+  )
+
   const handleSelectionChange = useCallback(() => {
     const selection = document.getSelection()
     const cursor = getCursor(selection)
@@ -45,14 +58,15 @@ export default function App() {
   return (
     <main className="prose p-10">
       <h1>Editor:</h1>
-      <section
+      <article
         className="rounded-xl border-2 px-4 outline-none max-w-3xl"
         contentEditable
         suppressContentEditableWarning
         spellCheck={false}
+        onKeyDown={handleKeyDown}
       >
         {getHandler(rootEntry.forType).render(manager.getState(), rootEntry)}
-      </section>
+      </article>
       <DebugPanel
         labels={
           {

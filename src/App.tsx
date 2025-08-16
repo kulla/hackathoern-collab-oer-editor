@@ -323,11 +323,6 @@ type Key<E extends EditorNode = EditorNode> = TypedValueFor<
 
 type EditorNode = Content | Paragraph | TextValue
 
-const paragraph: Paragraph = {
-  type: 'paragraph',
-  value: { type: 'text', value: 'This is a paragraph.' },
-}
-
 type Content = TypedValue<'content', Paragraph[]>
 type Paragraph = TypedValue<'paragraph', TextValue>
 type TextValue = TypedValue<'text', string>

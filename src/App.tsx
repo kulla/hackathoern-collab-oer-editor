@@ -24,6 +24,7 @@ const initialContent: Content = {
 
 export default function App() {
   const { manager } = useStateManager(initialContent)
+  const rootEntry = manager.getRootEntry()
 
   const handleSelectionChange = useCallback(() => {
     const selection = document.getSelection()
@@ -32,8 +33,6 @@ export default function App() {
       manager.update((state) => state.setCursor(cursor))
     }
   }, [manager])
-
-  const rootEntry = manager.getRootEntry()
 
   useEffect(() => {
     document.addEventListener('selectionchange', handleSelectionChange)

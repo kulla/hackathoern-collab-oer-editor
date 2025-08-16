@@ -47,7 +47,7 @@ export default function App() {
     <main className="prose p-10">
       <h1>Editor:</h1>
       <section
-        className="editor"
+        className="rounded-xl border-2 px-4 outline-none max-w-3xl"
         contentEditable
         suppressContentEditableWarning
         spellCheck={false}

@@ -1,4 +1,4 @@
-import { useRef, useState, useSyncExternalStore } from 'react'
+import { type ReactNode, useRef, useState, useSyncExternalStore } from 'react'
 import './App.css'
 
 const initialContent: Content = {

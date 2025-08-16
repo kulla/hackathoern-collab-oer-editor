@@ -1,4 +1,6 @@
+import { html as beautifyHtml } from 'js-beautify'
 import { type ReactNode, useRef, useState, useSyncExternalStore } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
 
 const initialContent: Content = {
@@ -26,12 +28,23 @@ export default function App() {
       <DebugPanel
         labels={
           {
+            html: 'HTML output',
             state: 'External editor state',
             entities: 'Internal editor state',
           } as const
         }
-        showOnStartup={{ state: true, entities: true }}
+        showOnStartup={{ html: true, state: true, entities: false }}
         getCurrentValue={{
+          html: () =>
+            beautifyHtml(
+              renderToStaticMarkup(
+                getHandler(rootEntry.forType).render(
+                  manager.getState(),
+                  rootEntry,
+                ),
+              ),
+              { indent_size: 2, wrap_line_length: 70 },
+            ),
           state: () => JSON.stringify(manager.read(), undefined, 2),
           entities: () =>
             manager

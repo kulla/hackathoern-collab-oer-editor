@@ -281,7 +281,11 @@ const ContentHandler: NodeHandler<'content'> = {
             .slice(0, startIndex)
             .concat(children.slice(endIndex + 1))
 
-          if (newChildren.length > 0) return newChildren
+          if (newChildren.length > 0) {
+            // To-Do: Add proper cursor settinu
+            state.setCursor(null)
+            return newChildren
+          }
 
           const newChild = ParagraphHandler.insert(
             state,

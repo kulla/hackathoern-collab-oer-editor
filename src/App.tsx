@@ -36,18 +36,17 @@ export default function App() {
       const cursor = manager.getState().getCursor()
       if (cursor == null) return
 
-      const { start, end } = cursor
+      const { targetNode, childCursor } = getTargetNode(
+        manager.getState(),
+        cursor,
+      )
 
-      if (start.key === end.key) {
-        const entry = manager.getState().getEntry(start.key)
-
-        if (entry.type === 'text' && 'offset' in start && 'offset' in end) {
-          TextHandler.onKeyDown?.(manager, entry as Entry<'text'>, event, {
-            start: start.offset,
-            end: end.offset,
-          })
-        }
-      }
+      getHandler(targetNode.type).onKeyDown?.(
+        manager,
+        targetNode,
+        event,
+        childCursor,
+      )
 
       event.preventDefault()
     },
@@ -542,7 +541,67 @@ function getPosition(
   return isKeyType('text', key) ? { key, offset } : { key }
 }
 
-interface ChildCursor<T extends NodeType> {
+function getTargetNode(
+  state: ReadonlyState,
+  cursor: Cursor,
+): { targetNode: Entry; childCursor: ChildCursor } {
+  const { start, end } = cursor
+
+  const pathStart = getPathToRoot(state, start.key)
+  const pathEnd = getPathToRoot(state, end.key)
+
+  const minLength = Math.min(pathStart.length, pathEnd.length)
+  let targetKey: Key = pathStart[0]
+  let targetIndex = 0
+
+  for (let i = 1; i < minLength; i++) {
+    if (pathStart[i] === pathEnd[i]) {
+      targetKey = pathStart[i]
+      targetIndex = i
+    } else {
+      break
+    }
+  }
+
+  const targetNode = state.getEntry(targetKey)
+
+  if (
+    targetKey === start.key &&
+    targetKey === end.key &&
+    'offset' in start &&
+    'offset' in end
+  ) {
+    return {
+      targetNode,
+      childCursor: { start: start.offset, end: end.offset },
+    }
+  }
+
+  return {
+    targetNode,
+    childCursor: {
+      start: pathStart[targetIndex + 1] ?? null,
+      end: pathEnd[targetIndex + 1] ?? null,
+    } as ChildCursor,
+  }
+}
+
+function getPathToRoot(state: ReadonlyState, key: Key): PathToRoot {
+  const result: Key[] = []
+  let current: Key | null = key
+
+  while (current != null) {
+    result.unshift(key)
+
+    current = state.getEntry(current).parent
+  }
+
+  return result
+}
+
+type PathToRoot = Key[]
+
+interface ChildCursor<T extends NodeType = NodeType> {
   start: ChildPosition<T>
   end: ChildPosition<T>
 }
@@ -556,17 +615,19 @@ interface Cursor {
 type ChildPosition<T extends NodeType> = ComputedChildPosition<ExternalValue<T>>
 type ComputedChildPosition<V extends ExternalValue> =
   V extends ExternalTypedValue
-    ? Key<V['type']>
+    ? Key<V['type']> | null
     : V extends Array<infer U>
       ? U extends ExternalTypedValue
-        ? Key<U['type']>
+        ? Key<U['type']> | null
         : never
       : V extends object
-        ? {
-            [K in keyof V]: V[K] extends ExternalTypedValue
-              ? Key<V[K]['type']>
-              : never
-          }[keyof V]
+        ?
+            | {
+                [K in keyof V]: V[K] extends ExternalTypedValue
+                  ? Key<V[K]['type']>
+                  : never
+              }[keyof V]
+            | null
         : V extends string
           ? number
           : null

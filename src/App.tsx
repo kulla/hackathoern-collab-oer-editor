@@ -42,7 +42,12 @@ export default function App() {
       if (start.key === end.key) {
         const entry = manager.getState().getEntry(start.key)
 
-        getHandler(entry.type).onKeyDown?.(manager, entry, event, cursor)
+        if (entry.type === 'text' && 'offset' in start && 'offset' in end) {
+          TextHandler.onKeyDown?.(manager, entry as Entry<'text'>, event, {
+            start: start.offset,
+            end: end.offset,
+          })
+        }
       }
 
       event.preventDefault()
@@ -274,19 +279,16 @@ const TextHandler: NodeHandler<'text'> = {
   },
   onKeyDown(manager, node, event, { start, end }) {
     if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
-      if ('offset' in start && 'offset' in end) {
-        manager.update((state) => {
-          state.update(
-            node.key,
-            (prev) =>
-              prev.slice(0, start.offset) + event.key + prev.slice(end.offset),
-          )
-          state.setCursor({
-            start: { ...start, offset: start.offset + 1 },
-            end: { ...start, offset: start.offset + 1 },
-          })
+      manager.update((state) => {
+        state.update(
+          node.key,
+          (prev) => prev.slice(0, start) + event.key + prev.slice(end),
+        )
+        state.setCursor({
+          start: { key: node.key, offset: start + 1 },
+          end: { key: node.key, offset: start + 1 },
         })
-      }
+      })
     }
 
     return false
@@ -315,7 +317,7 @@ interface NodeHandler<T extends NodeType = NodeType> {
     manager: StateManager,
     node: Entry<T>,
     event: KeyboardEvent,
-    currentSelection: Cursor,
+    childCursor: ChildCursor<T>,
   ): boolean
 }
 
@@ -496,10 +498,34 @@ function getPosition(
   return isKeyType('text', key) ? { key, offset } : { key }
 }
 
+interface ChildCursor<T extends NodeType> {
+  start: ChildPosition<T>
+  end: ChildPosition<T>
+}
+
 interface Cursor {
   start: Position
   end: Position
 }
+
+// To-Do: Maybe we should have the index / property name as the child position
+type ChildPosition<T extends NodeType> = ComputedChildPosition<ExternalValue<T>>
+type ComputedChildPosition<V extends ExternalValue> =
+  V extends ExternalTypedValue
+    ? Key<V['type']>
+    : V extends Array<infer U>
+      ? U extends ExternalTypedValue
+        ? Key<U['type']>
+        : never
+      : V extends object
+        ? {
+            [K in keyof V]: V[K] extends ExternalTypedValue
+              ? Key<V[K]['type']>
+              : never
+          }[keyof V]
+        : V extends string
+          ? number
+          : null
 
 type Position = TextPosition | NodePosition
 

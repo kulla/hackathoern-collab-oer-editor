@@ -298,8 +298,35 @@ const ContentHandler: NodeHandler<'content'> = {
 
           return [newChild]
         })
+
         return true
       })
+    }
+
+    if (event.key === 'Enter') {
+      manager.update((state) => {
+        const newChild = ParagraphHandler.insert(
+          state,
+          { type: 'paragraph', value: { type: 'text', value: '' } },
+          node.key,
+        )
+
+        ParagraphHandler.selectStart(state, state.getEntry(newChild))
+
+        state.update(node.key, (children) => {
+          const endIndex = end != null ? children.indexOf(end) : -1
+          const insertAt = endIndex === -1 ? children.length : endIndex + 1
+          return [
+            ...children.slice(0, insertAt),
+            newChild,
+            ...children.slice(insertAt),
+          ]
+        })
+
+        return true
+      })
+
+      return true
     }
 
     return false

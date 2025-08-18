@@ -289,6 +289,21 @@ const TextHandler: NodeHandler<'text'> = {
           end: { key: node.key, offset: start + 1 },
         })
       })
+
+      return true
+    }
+
+    if (
+      (event.key === 'Delete' || event.key === 'Backspace') &&
+      start !== end
+    ) {
+      manager.update((state) => {
+        state.update(node.key, (prev) => prev.slice(0, start) + prev.slice(end))
+        state.setCursor({
+          start: { key: node.key, offset: start + 1 },
+          end: { key: node.key, offset: start + 1 },
+        })
+      })
     }
 
     return false

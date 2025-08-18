@@ -7,3 +7,8 @@
 main {
   max-width: inherit;
 }
+
+span.text {
+  min-height: 1.5rem;
+  display: inline-block;
+}

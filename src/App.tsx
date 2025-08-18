@@ -372,7 +372,7 @@ const TextHandler: NodeHandler<'text'> = {
   },
   render(_, { key, value }) {
     return (
-      <span key={key} id={key} data-key={key}>
+      <span key={key} id={key} data-key={key} className="text">
         {value}
       </span>
     )

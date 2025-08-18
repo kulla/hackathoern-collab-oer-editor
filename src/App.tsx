@@ -591,7 +591,7 @@ function getPathToRoot(state: ReadonlyState, key: Key): PathToRoot {
   let current: Key | null = key
 
   while (current != null) {
-    result.unshift(key)
+    result.unshift(current)
 
     current = state.getEntry(current).parent
   }

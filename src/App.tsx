@@ -27,7 +27,6 @@ const initialContent: ExternalTypedValue<'content'> = {
 export default function App() {
   const { manager } = useStateManager(initialContent)
   const rootEntry = manager.getRootEntry()
-  const cursor = manager.getState().getCursor()
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
@@ -71,7 +70,9 @@ export default function App() {
     }
   }, [handleSelectionChange])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Use updateCount to trigger re-render for each state change
   useLayoutEffect(() => {
+    const cursor = manager.getState().getCursor()
     const selection = document.getSelection()
 
     if (selection == null) return
@@ -103,7 +104,7 @@ export default function App() {
     }
 
     selection.addRange(range)
-  }, [cursor])
+  }, [manager, manager.getUpdateCount()])
 
   return (
     <main className="prose p-10">
@@ -318,6 +319,17 @@ const TextHandler: NodeHandler<'text'> = {
           start: { key: node.key, offset: start - 1 },
           end: { key: node.key, offset: start - 1 },
         })
+      })
+
+      return true
+    }
+
+    if (event.key === 'Delete' && start < node.value.length) {
+      manager.update((state) => {
+        state.update(
+          node.key,
+          (prev) => prev.slice(0, start) + prev.slice(start + 1),
+        )
       })
 
       return true

@@ -33,17 +33,34 @@ export default function App() {
       const cursor = manager.getState().getCursor()
       if (cursor == null) return
 
-      const { targetNode, childCursor } = getTargetNode(
+      let { targetNode, childCursor } = getTargetNode(
         manager.getState(),
         cursor,
       )
 
-      getHandler(targetNode.type).onKeyDown?.(
-        manager,
-        targetNode,
-        event,
-        childCursor,
-      )
+      while (true) {
+        const isEventHandled = getHandler(targetNode.type).onKeyDown?.(
+          manager,
+          targetNode,
+          event,
+          childCursor,
+        )
+
+        if (isEventHandled) {
+          event.preventDefault()
+          return
+        }
+
+        if (targetNode.parent == null) {
+          break
+        }
+
+        childCursor = {
+          start: targetNode.key,
+          end: targetNode.key,
+        } as ChildCursor
+        targetNode = manager.getState().getEntry(targetNode.parent)
+      }
 
       if (
         (event.ctrlKey &&
@@ -52,8 +69,7 @@ export default function App() {
         event.key === 'Tab' ||
         event.key === 'Delete' ||
         event.key === 'Backspace' ||
-        event.key === 'Escape' ||
-        (event.key.length === 1 && !event.ctrlKey && !event.metaKey)
+        event.key === 'Escape'
       ) {
         event.preventDefault()
         return
@@ -247,6 +263,39 @@ const ContentHandler: NodeHandler<'content'> = {
         )}
       </div>
     )
+  },
+  onKeyDown(manager, node, event, { start, end }) {
+    if (
+      (event.key === 'Delete' || event.key === 'Backspace') &&
+      start != null &&
+      end != null
+    ) {
+      manager.update((state) => {
+        state.update(node.key, (children) => {
+          const startIndex = children.indexOf(start)
+          const endIndex = children.indexOf(end)
+
+          if (startIndex === -1 || endIndex === -1) return children
+
+          const newChildren = children
+            .slice(0, startIndex)
+            .concat(children.slice(endIndex + 1))
+
+          if (newChildren.length > 0) return newChildren
+
+          const newChild = ParagraphHandler.insert(
+            state,
+            { type: 'paragraph', value: { type: 'text', value: '' } },
+            node.key,
+          )
+
+          return [newChild]
+        })
+        return true
+      })
+    }
+
+    return false
   },
 }
 

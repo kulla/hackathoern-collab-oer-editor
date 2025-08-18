@@ -306,6 +306,21 @@ const TextHandler: NodeHandler<'text'> = {
       })
     }
 
+    if (event.key === 'Backspace' && start > 0) {
+      manager.update((state) => {
+        state.update(
+          node.key,
+          (prev) => prev.slice(0, start - 1) + prev.slice(start),
+        )
+        state.setCursor({
+          start: { key: node.key, offset: start - 1 },
+          end: { key: node.key, offset: start - 1 },
+        })
+      })
+
+      return true
+    }
+
     return false
   },
 }

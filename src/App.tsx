@@ -52,7 +52,8 @@ export default function App() {
         event.key === 'Tab' ||
         event.key === 'Delete' ||
         event.key === 'Backspace' ||
-        event.key === 'Escape'
+        event.key === 'Escape' ||
+        (event.key.length === 1 && !event.ctrlKey && !event.metaKey)
       ) {
         event.preventDefault()
         return

@@ -30,9 +30,6 @@ export default function App() {
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
-      if (event.key.startsWith('Arrow')) return
-      if (event.ctrlKey && event.key === 'r') return
-
       const cursor = manager.getState().getCursor()
       if (cursor == null) return
 
@@ -48,7 +45,18 @@ export default function App() {
         childCursor,
       )
 
-      event.preventDefault()
+      if (
+        (event.ctrlKey &&
+          (event.key === 'c' || event.key === 'v' || event.key === 'x')) ||
+        event.key === 'Enter' ||
+        event.key === 'Tab' ||
+        event.key === 'Delete' ||
+        event.key === 'Backspace' ||
+        event.key === 'Escape'
+      ) {
+        event.preventDefault()
+        return
+      }
     },
     [manager],
   )

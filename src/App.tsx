@@ -69,7 +69,8 @@ export default function App() {
         event.key === 'Tab' ||
         event.key === 'Delete' ||
         event.key === 'Backspace' ||
-        event.key === 'Escape'
+        event.key === 'Escape' ||
+        (event.key.length === 1 && !event.ctrlKey && !event.metaKey)
       ) {
         event.preventDefault()
         return
@@ -293,6 +294,8 @@ const ContentHandler: NodeHandler<'content'> = {
             node.key,
           )
 
+          ParagraphHandler.selectStart(state, state.getEntry(newChild))
+
           return [newChild]
         })
         return true
@@ -300,6 +303,10 @@ const ContentHandler: NodeHandler<'content'> = {
     }
 
     return false
+  },
+  selectStart(state, { value }) {
+    const firstChild = state.getEntry(value[0])
+    ParagraphHandler.selectStart(state, firstChild)
   },
 }
 
@@ -322,6 +329,10 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
       </p>
     )
   },
+  selectStart(state, { value }) {
+    const textEntry = state.getEntry(value)
+    TextHandler.selectStart(state, textEntry)
+  },
 }
 
 const TextHandler: NodeHandler<'text'> = {
@@ -338,6 +349,12 @@ const TextHandler: NodeHandler<'text'> = {
         {value}
       </span>
     )
+  },
+  selectStart(state, { key }) {
+    state.setCursor({
+      start: { key, offset: 0 },
+      end: { key, offset: 0 },
+    })
   },
   onKeyDown(manager, node, event, { start, end }) {
     if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
@@ -424,6 +441,7 @@ interface NodeHandler<T extends NodeType = NodeType> {
     event: KeyboardEvent,
     childCursor: ChildCursor<T>,
   ): boolean
+  selectStart(state: WritableState, node: Entry<T>): void
 }
 
 // State manager

@@ -35,5 +35,4 @@ bun update
 
 ## Possible improvements
 
-- Use `type` instead of `forType` for entries and keys (The type shoudl be clear from the context)
 - When a non editable entry is selected => focus it.

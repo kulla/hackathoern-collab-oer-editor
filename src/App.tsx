@@ -13,7 +13,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
 import { isEqual } from 'es-toolkit'
 
-const initialContent: Content = {
+const initialContent: ExternalTypedValue<'content'> = {
   type: 'content',
   value: [
     {
@@ -39,10 +39,10 @@ export default function App() {
 
       const { start, end } = cursor
 
-      if (start.key.value === end.key.value) {
+      if (start.key === end.key) {
         const entry = manager.getState().getEntry(start.key)
 
-        getHandler(entry.forType).onKeyDown?.(manager, entry, event, cursor)
+        getHandler(entry.type).onKeyDown?.(manager, entry, event, cursor)
       }
 
       event.preventDefault()
@@ -78,8 +78,8 @@ export default function App() {
 
     const { start, end } = cursor
 
-    const startNode = document.getElementById(start.key.value)
-    const endNode = document.getElementById(end.key.value)
+    const startNode = document.getElementById(start.key)
+    const endNode = document.getElementById(end.key)
 
     if (startNode == null || endNode == null) return
 
@@ -110,7 +110,7 @@ export default function App() {
         spellCheck={false}
         onKeyDown={handleKeyDown}
       >
-        {getHandler(rootEntry.forType).render(manager.getState(), rootEntry)}
+        {getHandler(rootEntry.type).render(manager.getState(), rootEntry)}
       </article>
       <DebugPanel
         labels={
@@ -131,7 +131,7 @@ export default function App() {
           html: () =>
             beautifyHtml(
               renderToStaticMarkup(
-                getHandler(rootEntry.forType).render(
+                getHandler(rootEntry.type).render(
                   manager.getState(),
                   rootEntry,
                 ),
@@ -206,10 +206,10 @@ function DebugPanel<T extends string>({
 
 // Handlers for managing editor nodes
 
-const ContentHandler: NodeHandler<Content> = {
-  insert(state, { value: children, type: forType }, parent) {
+const ContentHandler: NodeHandler<'content'> = {
+  insert(state, { value: children, type }, parent) {
     return state.insert({
-      forType,
+      type,
       parent,
       createValue: (key) => {
         return children.map((child) =>
@@ -219,20 +219,15 @@ const ContentHandler: NodeHandler<Content> = {
     })
   },
   read(state, key) {
-    const { forType: type, value } = state.getEntry(key)
+    const { type, value } = state.getEntry(key)
     return {
       type,
       value: value.map((childKey) => ParagraphHandler.read(state, childKey)),
     }
   },
-  render(state, { key, value, forType }) {
+  render(state, { key, value }) {
     return (
-      <div
-        key={key.value}
-        id={key.value}
-        data-key={key.value}
-        data-type={forType}
-      >
+      <div key={key} id={key} data-key={key}>
         {value.map((childKey) =>
           ParagraphHandler.render(state, state.getEntry(childKey)),
         )}
@@ -241,48 +236,38 @@ const ContentHandler: NodeHandler<Content> = {
   },
 }
 
-const ParagraphHandler: NodeHandler<Paragraph> = {
-  insert(state, { value: child, type: forType }, parent) {
+const ParagraphHandler: NodeHandler<'paragraph'> = {
+  insert(state, { value: child, type }, parent) {
     return state.insert({
-      forType,
+      type,
       parent,
       createValue: (key) => TextHandler.insert(state, child, key),
     })
   },
   read(state, key) {
-    const { forType: type, value } = state.getEntry(key)
+    const { type, value } = state.getEntry(key)
     return { type, value: TextHandler.read(state, value) }
   },
-  render(state, { key, value, forType }) {
+  render(state, { key, value }) {
     return (
-      <p
-        key={key.value}
-        id={key.value}
-        data-key={key.value}
-        data-type={forType}
-      >
+      <p key={key} id={key} data-key={key}>
         {TextHandler.render(state, state.getEntry(value))}
       </p>
     )
   },
 }
 
-const TextHandler: NodeHandler<TextValue> = {
-  insert(state, { value, type: forType }, parent) {
-    return state.insert({ forType, parent, createValue: () => value })
+const TextHandler: NodeHandler<'text'> = {
+  insert(state, { value, type }, parent) {
+    return state.insert({ type, parent, createValue: () => value })
   },
   read(state, key) {
-    const { forType: type, value } = state.getEntry(key)
+    const { type, value } = state.getEntry(key)
     return { type, value }
   },
-  render(_, { key, value, forType }) {
+  render(_, { key, value }) {
     return (
-      <span
-        key={key.value}
-        id={key.value}
-        data-key={key.value}
-        data-type={forType}
-      >
+      <span key={key} id={key} data-key={key}>
         {value}
       </span>
     )
@@ -308,23 +293,27 @@ const TextHandler: NodeHandler<TextValue> = {
   },
 }
 
-const handlers: Record<EditorNode['type'], NodeHandler<EditorNode>> = {
+const handlers: { [T in NodeType]: NodeHandler<T> } = {
   content: ContentHandler,
   paragraph: ParagraphHandler,
   text: TextHandler,
 }
 
-function getHandler<E extends EditorNode>(type: E['type']): NodeHandler<E> {
-  return handlers[type] as NodeHandler<E>
+function getHandler<T extends NodeType>(type: T): NodeHandler<T> {
+  return handlers[type]
 }
 
-interface NodeHandler<E extends EditorNode> {
-  insert(state: WritableState, node: E, parent: ParentKey): Key<E>
-  read(state: ReadonlyState, key: Key<E>): E
-  render(state: ReadonlyState, node: Entry<E>): ReactNode
+interface NodeHandler<T extends NodeType = NodeType> {
+  insert(
+    state: WritableState,
+    node: ExternalTypedValue<T>,
+    parent: ParentKey,
+  ): Key<T>
+  read(state: ReadonlyState, key: Key<T>): ExternalTypedValue<T>
+  render(state: ReadonlyState, node: Entry<T>): ReactNode
   onKeyDown?(
     manager: StateManager,
-    node: Entry<E>,
+    node: Entry<T>,
     event: KeyboardEvent,
     currentSelection: Cursor,
   ): boolean
@@ -332,7 +321,7 @@ interface NodeHandler<E extends EditorNode> {
 
 // State manager
 
-function useStateManager(initialContent: EditorNode) {
+function useStateManager(initialContent: ExternalTypedValue) {
   const manager = useRef(new StateManager(initialContent)).current
   const lastReturn = useRef({ manager, updateCount: manager.getUpdateCount() })
 
@@ -354,14 +343,14 @@ function useStateManager(initialContent: EditorNode) {
   )
 }
 
-class StateManager {
+class StateManager<T extends NodeType = NodeType> {
   private readonly state = new WritableState()
-  private readonly rootKey: Key<EditorNode>
+  private readonly rootKey: Key<T>
   private updateListeners: (() => void)[] = []
   private updateCallDepth = 0
   private updateCount = 0
 
-  constructor(initialContent: EditorNode) {
+  constructor(initialContent: ExternalTypedValue<T>) {
     this.rootKey = getHandler(initialContent.type).insert(
       this.state,
       initialContent,
@@ -395,15 +384,15 @@ class StateManager {
     return this.updateCount
   }
 
-  read(): EditorNode {
-    return getHandler(this.rootKey.forType).read(this.state, this.rootKey)
+  read(): ExternalTypedValue<T> {
+    return getHandler(parseType(this.rootKey)).read(this.state, this.rootKey)
   }
 
   getState(): ReadonlyState {
     return this.state
   }
 
-  getRootEntry(): Entry<EditorNode> {
+  getRootEntry(): Entry<T> {
     return this.state.getEntry(this.rootKey)
   }
 }
@@ -411,11 +400,11 @@ class StateManager {
 // State management for an editor structure
 
 class ReadonlyState {
-  protected entries = new Map<Key['value'], Entry>()
+  protected entries = new Map<Key, Entry>()
   protected cursor: Cursor | null = null
 
-  getEntry<E extends EditorNode>(key: Key<E>): Entry<E> {
-    const entry = this.entries.get(key.value) as Entry<E> | undefined
+  getEntry<T extends NodeType>(key: Key<T>): Entry<T> {
+    const entry = this.entries.get(key) as Entry<T> | undefined
 
     // To-Do: Add assert logic
     if (!entry) {
@@ -425,7 +414,7 @@ class ReadonlyState {
     return entry
   }
 
-  getEntries(): [Key['value'], Entry][] {
+  getEntries(): [Key, Entry][] {
     return Array.from(this.entries.entries())
   }
 
@@ -437,41 +426,39 @@ class ReadonlyState {
 class WritableState extends ReadonlyState {
   private lastKey = -1
 
-  insert<E extends EditorNode>({
-    forType,
+  insert<T extends NodeType>({
+    type,
     parent,
     createValue,
-  }: UnstoredEntry<E>): Key<E> {
-    const key = this.generateKey(forType)
-    const value = createValue(key)
+  }: UnstoredEntry<T>): Key<T> {
+    const key = this.generateKey(type)
 
-    this.set(key, { type: 'entry', key, forType, parent, value })
+    this.set(key, { type, key, parent, value: createValue(key) })
 
     return key
   }
 
-  update<E extends EditorNode>(
-    key: Key<E>,
-    updateValue: (e: EntryValue<E>) => EntryValue<E>,
+  update<T extends NodeType>(
+    key: Key<T>,
+    updateValue: (e: EntryValue<T>) => EntryValue<T>,
   ) {
     const entry = this.getEntry(key)
-    const updatedValue = updateValue(entry.value)
-    this.set(key, { ...entry, value: updatedValue })
+
+    this.set(key, { ...entry, value: updateValue(entry.value) })
   }
 
   setCursor(cursor: Cursor | null) {
     this.cursor = cursor
   }
 
-  private set<E extends EditorNode>(key: Key<E>, entry: Entry<E>) {
-    this.entries.set(key.value, entry)
+  private set<T extends NodeType>(key: Key<T>, entry: Entry<T>) {
+    this.entries.set(key, entry)
   }
 
-  private generateKey<E extends EditorNode = EditorNode>(
-    forType: E['type'],
-  ): Key<E> {
+  private generateKey<T extends NodeType>(type: T): Key<T> {
     this.lastKey += 1
-    return { type: 'key', forType, value: this.lastKey.toString() }
+
+    return `${this.lastKey}:${type}`
   }
 }
 
@@ -502,15 +489,11 @@ function getPosition(
 
   if (htmlNode == null) return null
 
-  const { key: keyValue, type } = htmlNode.dataset
+  const { key } = htmlNode.dataset
 
-  if (!isKeyValue(keyValue) || !isType(type)) return null
+  if (!isKey(key)) return null
 
-  const key: Key = { type: 'key', forType: type, value: keyValue }
-
-  return key.forType === 'text'
-    ? ({ key, offset } as TextPosition)
-    : ({ key } as NodePosition)
+  return isKeyType('text', key) ? { key, offset } : { key }
 }
 
 interface Cursor {
@@ -521,68 +504,87 @@ interface Cursor {
 type Position = TextPosition | NodePosition
 
 interface TextPosition {
-  key: Key<TextValue>
+  key: Key<'text'>
   offset: number
 }
 
 interface NodePosition {
-  key: Key<Exclude<EditorNode, TextValue>>
+  key: Key<Exclude<NodeType, 'text'>>
 }
 
 // Description for the internal structure of the editor
 
-type Entry<E extends EditorNode = EditorNode> = TypedValueFor<
-  E['type'],
-  'entry',
-  EntryValue<E>
-> & {
-  key: Key<E>
+interface Entry<T extends NodeType = NodeType> {
+  type: T
+  key: Key<T>
   parent: ParentKey
+  value: EntryValue<T>
 }
-type UnstoredEntry<E extends EditorNode = EditorNode> = Omit<
-  Entry<E>,
-  'key' | 'value' | 'type'
-> & { createValue: (key: Key<E>) => EntryValue<E> }
+type UnstoredEntry<T extends NodeType> = Omit<Entry<T>, 'key' | 'value'> & {
+  createValue: (key: Key<T>) => EntryValue<T>
+}
 
-type EntryValue<E extends EditorNode> = ComputedEntryValue<E['value']>
-type ComputedEntryValue<V extends EditorNode['value']> = V extends EditorNode
-  ? Key<V>
+type EntryValue<T extends NodeType> = ComputedEntryValue<ExternalValue<T>>
+type ComputedEntryValue<V extends ExternalValue> = V extends ExternalTypedValue
+  ? Key<V['type']>
   : V extends string | number | boolean
     ? V
     : V extends Array<infer U>
-      ? U extends EditorNode
-        ? Key<U>[]
+      ? U extends ExternalTypedValue
+        ? Key<U['type']>[]
         : never
       : V extends object
-        ? { [K in keyof V]: V[K] extends EditorNode ? Key<V[K]> : never }
+        ? {
+            [K in keyof V]: V[K] extends ExternalTypedValue
+              ? Key<V[K]['type']>
+              : never
+          }
         : never
 
-type ParentKey = Key<EditorNode> | null
-type Key<E extends EditorNode = EditorNode> = TypedValueFor<
-  E['type'],
-  'key',
-  string
->
+type ParentKey = Key | null
+type Key<T extends NodeType = NodeType> = `${number}:${T}`
 
-function isType(value: unknown): value is EditorNode['type'] {
+function isKeyType<T extends NodeType>(type: T, key: Key): key is Key<T> {
+  return key.endsWith(type)
+}
+
+function isType(value: unknown): value is NodeType {
   return typeof value === 'string' && Object.keys(handlers).includes(value)
 }
 
-function isKeyValue(value: unknown): value is Key['value'] {
-  return typeof value === 'string' && Number.isInteger(Number(value))
+function isKey(value: unknown): value is Key {
+  if (typeof value !== 'string') return false
+
+  const indexOfSeparator = value.indexOf(':')
+
+  return (
+    indexOfSeparator >= 0 &&
+    !Number.isNaN(Number.parseInt(value.slice(0, indexOfSeparator), 10)) &&
+    isType(value.slice(indexOfSeparator + 1))
+  )
+}
+
+function parseType<T extends NodeType>(key: Key<T>): T {
+  const indexOfSeparator = key.indexOf(':')
+  return key.slice(indexOfSeparator + 1) as T
 }
 
 // Description of the external JSON for the editor structure
 
-type EditorNode = Content | Paragraph | TextValue
+// To-Do: Find a better name than "ExternalValue"
+interface ExternalTypedValue<T extends NodeType = NodeType> {
+  type: T
+  value: ExternalValue<T>
+}
 
-type Content = TypedValue<'content', Paragraph[]>
-type Paragraph = TypedValue<'paragraph', TextValue>
-type TextValue = TypedValue<'text', string>
+interface ExternalValueMap {
+  content: ExternalTypedValue<'paragraph'>[]
+  paragraph: ExternalTypedValue<'text'>
+  text: string
+}
 
-type TypedValueFor<
-  F extends string,
-  T extends string,
-  U = unknown,
-> = TypedValue<T, U> & { forType: F }
-type TypedValue<T extends string = string, U = unknown> = { type: T; value: U }
+type ExternalValue<T extends NodeType = NodeType> = ExternalValueMap[T]
+
+// Editor node types
+
+type NodeType = 'content' | 'paragraph' | 'text'

@@ -725,7 +725,7 @@ class WritableState extends ReadonlyState {
     this.cursor = cursor
   }
 
-  setCollapsedCursor(position: Position) {
+  setCollapsedCursor(position: Point) {
     this.setCursor({ start: position, end: position })
   }
 
@@ -747,18 +747,15 @@ function getCursor(selection: Selection | null): Cursor | null {
 
   const range = selection.getRangeAt(0)
 
-  const startPosition = getPosition(range.startContainer, range.startOffset)
-  const endPosition = getPosition(range.endContainer, range.endOffset)
+  const startPoint = getPoint(range.startContainer, range.startOffset)
+  const endPoint = getPoint(range.endContainer, range.endOffset)
 
-  if (startPosition == null || endPosition == null) return null
+  if (startPoint == null || endPoint == null) return null
 
-  return { start: startPosition, end: endPosition }
+  return { start: startPoint, end: endPoint }
 }
 
-function getPosition(
-  node: Node | null,
-  offset: number | null,
-): Position | null {
+function getPoint(node: Node | null, offset: number | null): Point | null {
   if (node == null) return null
 
   const htmlNode = node instanceof HTMLElement ? node : node.parentElement
@@ -800,7 +797,7 @@ function getTargetNodeStack(
   return { targetNodeStack, start, end }
 }
 
-function getPathToRoot(state: ReadonlyState, position: Position): LinkedPath {
+function getPathToRoot(state: ReadonlyState, position: Point): LinkedPath {
   const entry = state.getEntry(position.key)
   let result: LinkedPath =
     'offset' in position
@@ -844,19 +841,19 @@ type IndexTypeOf<V extends ExternalValue> = V extends string | Array<unknown>
       : never
 
 interface Cursor {
-  start: Position
-  end: Position
+  start: Point
+  end: Point
 }
 
-type Position = CharacterPosition | NodePosition
+type Point = CharacterPoint | NodePoint
 
-interface CharacterPosition {
+interface CharacterPoint {
   type: 'character'
   key: Key<'text'>
   offset: number
 }
 
-interface NodePosition<T extends NodeType = NodeType> {
+interface NodePoint<T extends NodeType = NodeType> {
   type: 'node'
   key: Key<T>
 }

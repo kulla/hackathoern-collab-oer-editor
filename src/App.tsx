@@ -30,6 +30,8 @@ export default function App() {
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
+      if (event.shiftKey || event.key.startsWith('Arrow')) return
+
       const cursor = manager.getState().getCursor()
       if (cursor == null) return
 
@@ -273,9 +275,34 @@ const ContentHandler: NodeHandler<'content'> = {
     if (event.key === 'Delete' || event.key === 'Backspace') {
       manager.update((state) => {
         state.update(node.key, (children) => {
-          const newChildren = children
-            .slice(0, start)
-            .concat(children.slice(end + 1))
+          const left =
+            startPath != null
+              ? ParagraphHandler.splitAt(
+                  startPath.path.entry as Entry<'paragraph'>,
+                  startPath.path.next as NextPath<'paragraph'>,
+                )?.[0]
+              : null
+          const right =
+            endPath != null
+              ? ParagraphHandler.splitAt(
+                  endPath.path.entry as Entry<'paragraph'>,
+                  endPath.path.next as NextPath<'paragraph'>,
+                )?.[1]
+              : null
+
+          const merge =
+            left && right ? ParagraphHandler.merge(left, right) : null
+
+          const mergeKey =
+            merge != null
+              ? ParagraphHandler.insert(state, merge, node.key)
+              : null
+
+          const newChildren = [
+            ...children.slice(0, start),
+            ...(mergeKey != null ? [mergeKey] : []),
+            ...children.slice(end + 1),
+          ]
 
           if (newChildren.length > 0) {
             // To-Do: Add proper cursor settinu

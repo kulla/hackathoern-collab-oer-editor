@@ -8,7 +8,7 @@ main {
   max-width: inherit;
 }
 
-span.text {
-  min-height: 1.5rem;
-  display: inline-block;
+span.text::after {
+  /* Render &nbsp; as a non-breaking space so that the span does not collapse */
+  content: "\0000A0";
 }

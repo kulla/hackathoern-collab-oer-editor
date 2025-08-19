@@ -721,14 +721,14 @@ function getTargetNodeStack(
   let end = getPathToRoot(state, cursor.end)
   const targetNodeStack: LinkedPath[] = []
 
-  while (
-    start.next != null &&
-    end.next != null &&
-    start.entry.key === end.entry.key
-  ) {
+  while (start.entry.key === end.entry.key) {
     targetNodeStack.push(start)
 
-    if (start.next.path != null && end.next.path != null) {
+    if (
+      start.next?.path != null &&
+      end.next?.path != null &&
+      start.next.index === end.next.index
+    ) {
       start = start.next.path
       end = end.next.path
     } else {

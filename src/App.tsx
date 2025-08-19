@@ -153,7 +153,7 @@ export default function App() {
         showOnStartup={{
           html: true,
           selection: true,
-          state: true,
+          state: false,
           entities: false,
         }}
         getCurrentValue={{

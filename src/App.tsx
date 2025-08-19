@@ -45,8 +45,8 @@ export default function App() {
           manager,
           targetNode,
           event,
-          start,
-          end,
+          start.next,
+          end.next,
         )
 
         if (isEventHandled) {
@@ -267,8 +267,8 @@ const ContentHandler: NodeHandler<'content'> = {
     )
   },
   onKeyDown(manager, node, event, startPath, endPath) {
-    const start = startPath.next?.index ?? 0
-    const end = endPath.next?.index ?? node.value.length
+    const start = startPath?.index ?? 0
+    const end = endPath?.index ?? node.value.length
 
     if (event.key === 'Delete' || event.key === 'Backspace') {
       manager.update((state) => {
@@ -394,8 +394,8 @@ const TextHandler: NodeHandler<'text'> = {
     })
   },
   onKeyDown(manager, node, event, startPath, endPath) {
-    const start = startPath.next?.index ?? 0
-    const end = endPath.next?.index ?? node.value.length
+    const start = startPath?.index ?? 0
+    const end = endPath?.index ?? node.value.length
 
     if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
       manager.update((state) => {
@@ -484,8 +484,8 @@ interface NodeHandler<T extends NodeType = NodeType> {
     manager: StateManager,
     node: Entry<T>,
     event: KeyboardEvent,
-    start: LinkedPath<T>,
-    end: LinkedPath<T>,
+    start: NextPath<T>,
+    end: NextPath<T>,
   ): boolean
   selectStart(state: WritableState, node: Entry<T>): void
   getIndexWithin(node: Entry<T>, childKey: Key): IndexType<T>
@@ -697,7 +697,7 @@ function getPathToRoot(state: ReadonlyState, position: Position): LinkedPath {
   let result: LinkedPath =
     'offset' in position
       ? { entry, next: { index: position.offset, path: null } }
-      : { entry }
+      : { entry, next: null }
 
   while (result.entry.parent !== null) {
     const parentEntry = state.getEntry(result.entry.parent)
@@ -717,8 +717,13 @@ interface LinkedPath<
   I extends IndexType<T> = IndexType<T>,
 > {
   entry: Entry<T>
-  next?: { index: I; path: T extends 'text' ? null : LinkedPath }
+  next: NextPath<T, I>
 }
+
+type NextPath<T extends NodeType, I extends IndexType<T> = IndexType<T>> = {
+  index: I
+  path: T extends 'text' ? null : LinkedPath
+} | null
 
 type IndexType<T extends NodeType> = IndexTypeOf<ExternalValue<T>>
 type IndexTypeOf<V extends ExternalValue> = V extends string | Array<unknown>

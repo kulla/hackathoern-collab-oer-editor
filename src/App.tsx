@@ -711,11 +711,6 @@ interface ChildCursor<T extends NodeType = NodeType> {
   end: ChildPosition<T>
 }
 
-interface Cursor {
-  start: Position
-  end: Position
-}
-
 // To-Do: Maybe we should have the index / property name as the child position
 type ChildPosition<T extends NodeType> = ComputedChildPosition<ExternalValue<T>>
 type ComputedChildPosition<V extends ExternalValue> =
@@ -736,6 +731,11 @@ type ComputedChildPosition<V extends ExternalValue> =
         : V extends string
           ? number
           : null
+
+interface Cursor {
+  start: Position
+  end: Position
+}
 
 type Position<T extends NodeType = NodeType> = T extends Exclude<
   NodeType,

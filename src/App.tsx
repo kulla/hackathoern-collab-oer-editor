@@ -320,9 +320,9 @@ const ContentHandler: NodeHandler<'content'> = {
 
           return [newChild]
         })
-
-        return true
       })
+
+      return true
     }
 
     if (event.key === 'Enter') {

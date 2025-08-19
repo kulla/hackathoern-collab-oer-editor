@@ -736,11 +736,11 @@ type ChildType<
   ParentType extends NodeType | null,
   I extends IndexType<ParentType>,
 > = ParentType extends NodeType
-  ? EntryValue<ParentType> extends Key<infer T>
-    ? T
-    : I extends keyof EntryValue<ParentType>
-      ? EntryValue<ParentType>[I] extends Key<infer U>
-        ? U
+  ? ExternalValue<ParentType> extends ExternalTypedValue
+    ? ExternalValue<ParentType>['type']
+    : I extends keyof ExternalValue<ParentType>
+      ? ExternalValue<ParentType>[I] extends ExternalTypedValue
+        ? ExternalValue<ParentType>[I]['type']
         : never
       : never
   : never
@@ -748,13 +748,11 @@ type ChildType<
 // To-Do: Maybe we should indroduce a root node so that we do not need "null" here for ParentType
 type IndexType<ParentType extends NodeType | null = NodeType | null> =
   ParentType extends NodeType
-    ? ParentType extends 'text'
+    ? ExternalValue<ParentType> extends string | Array<unknown>
       ? number
-      : EntryValue<ParentType> extends Array<unknown>
-        ? number
-        : EntryValue<ParentType> extends object
-          ? keyof EntryValue<ParentType>
-          : never
+      : ExternalValue<ParentType> extends object
+        ? keyof ExternalValue<ParentType>
+        : never
     : never
 
 interface Cursor {

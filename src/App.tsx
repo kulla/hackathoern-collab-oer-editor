@@ -305,8 +305,16 @@ const ContentHandler: NodeHandler<'content'> = {
           ]
 
           if (newChildren.length > 0) {
-            // To-Do: Add proper cursor settinu
-            state.setCursor(null)
+            const newEntry = state.getEntry(newChildren[start])
+
+            if (startPath != null) {
+              const nextPath = startPath.path as LinkedPath<'paragraph'>
+
+              ParagraphHandler.select(state, newEntry, nextPath.next)
+            } else {
+              ParagraphHandler.selectStart(state, newEntry)
+            }
+
             return newChildren
           }
 
@@ -373,6 +381,9 @@ const ContentHandler: NodeHandler<'content'> = {
     // Investigate if merging content is needed
     return null
   },
+  select() {
+    throw new Error('not implemented yet')
+  },
 }
 
 const ParagraphHandler: NodeHandler<'paragraph'> = {
@@ -426,6 +437,17 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
     if (value == null) return null
 
     return { type: 'paragraph', value }
+  },
+  select(state, { type, key, value }, next) {
+    if (next == null) {
+      const start = { type, key }
+      state.setCursor({ start, end: start })
+    } else {
+      const path = next.path as LinkedPath<'text'>
+      const child = state.getEntry(value)
+
+      TextHandler.select(state, child, path.next)
+    }
   },
 }
 
@@ -533,6 +555,14 @@ const TextHandler: NodeHandler<'text'> = {
   merge(left, right) {
     return { type: 'text', value: left.value + right.value }
   },
+  select(state, { type, key, value }, next) {
+    const start = {
+      type,
+      key,
+      offset: next != null ? next.index : value.length,
+    }
+    state.setCursor({ start, end: start })
+  },
 }
 
 const handlers: { [T in NodeType]: NodeHandler<T> } = {
@@ -560,6 +590,7 @@ interface NodeHandler<T extends NodeType = NodeType> {
     start: NextPath<T>,
     end: NextPath<T>,
   ): boolean
+  select(state: WritableState, node: Entry<T>, at: NextPath<T>): void
   selectStart(state: WritableState, node: Entry<T>): void
   getIndexWithin(node: Entry<T>, childKey: Key): IndexType<T>
   splitAt(

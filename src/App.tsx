@@ -336,10 +336,12 @@ const ContentHandler: NodeHandler<'content'> = {
         ParagraphHandler.selectStart(state, state.getEntry(newChild))
 
         state.update(node.key, (children) => {
-          return [...children.slice(0, end), newChild, ...children.slice(end)]
+          return [
+            ...children.slice(0, end + 1),
+            newChild,
+            ...children.slice(end + 1),
+          ]
         })
-
-        return true
       })
 
       return true

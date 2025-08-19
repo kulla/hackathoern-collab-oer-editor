@@ -732,6 +732,31 @@ type ComputedChildPosition<V extends ExternalValue> =
           ? number
           : null
 
+type ChildType<
+  ParentType extends NodeType | null,
+  I extends IndexType<ParentType>,
+> = ParentType extends NodeType
+  ? EntryValue<ParentType> extends Key<infer T>
+    ? T
+    : I extends keyof EntryValue<ParentType>
+      ? EntryValue<ParentType>[I] extends Key<infer U>
+        ? U
+        : never
+      : never
+  : never
+
+// To-Do: Maybe we should indroduce a root node so that we do not need "null" here for ParentType
+type IndexType<ParentType extends NodeType | null = NodeType | null> =
+  ParentType extends NodeType
+    ? ParentType extends 'text'
+      ? number
+      : EntryValue<ParentType> extends Array<unknown>
+        ? number
+        : EntryValue<ParentType> extends object
+          ? keyof EntryValue<ParentType>
+          : never
+    : never
+
 interface Cursor {
   start: Position
   end: Position

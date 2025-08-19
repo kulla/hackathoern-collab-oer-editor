@@ -697,13 +697,13 @@ function getPathToRoot(state: ReadonlyState, position: Position): LinkedPath {
       : { entry }
 
   while (result.entry.parent !== null) {
-    const entry = state.getEntry(result.entry.parent)
-    const index = getHandler(entry.type).getIndexWithin(
-      result.entry,
-      position.key,
+    const parentEntry = state.getEntry(result.entry.parent)
+    const index = getHandler(parentEntry.type).getIndexWithin(
+      parentEntry,
+      result.entry.key,
     )
 
-    result = { entry, next: { index, path: result } }
+    result = { entry: parentEntry, next: { index, path: result } }
   }
 
   return result

@@ -677,13 +677,16 @@ function getTargetNodeStack(
   while (
     start.next != null &&
     end.next != null &&
-    start.next.path != null &&
-    end.next.path != null &&
     start.entry.key === end.entry.key
   ) {
     targetNodeStack.push(start)
-    start = start.next.path
-    end = end.next.path
+
+    if (start.next.path != null && end.next.path != null) {
+      start = start.next.path
+      end = end.next.path
+    } else {
+      break
+    }
   }
 
   return { targetNodeStack, start, end }

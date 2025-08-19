@@ -737,15 +737,20 @@ type ComputedChildPosition<V extends ExternalValue> =
           ? number
           : null
 
-type Position = TextPosition | NodePosition
+type Position<T extends NodeType = NodeType> = T extends Exclude<
+  NodeType,
+  'text'
+>
+  ? NodePosition<T>
+  : TextPosition
 
 interface TextPosition {
   key: Key<'text'>
   offset: number
 }
 
-interface NodePosition {
-  key: Key<Exclude<NodeType, 'text'>>
+interface NodePosition<T extends Exclude<NodeType, 'text'>> {
+  key: Key<T>
 }
 
 // Description for the internal structure of the editor

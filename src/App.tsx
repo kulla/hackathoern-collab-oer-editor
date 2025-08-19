@@ -340,6 +340,10 @@ const ContentHandler: NodeHandler<'content'> = {
     // Investigate if splitting content makes sense
     return null
   },
+  merge() {
+    // Investigate if merging content is needed
+    return null
+  },
 }
 
 const ParagraphHandler: NodeHandler<'paragraph'> = {
@@ -386,6 +390,13 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
           { type: 'paragraph', value: split[1] },
         ]
       : null
+  },
+  merge(left, right) {
+    const value = TextHandler.merge(left.value, right.value)
+
+    if (value == null) return null
+
+    return { type: 'paragraph', value }
   },
 }
 
@@ -485,6 +496,9 @@ const TextHandler: NodeHandler<'text'> = {
       { type: 'text', value: value.slice(next.index) },
     ]
   },
+  merge(left, right) {
+    return { type: 'text', value: left.value + right.value }
+  },
 }
 
 const handlers: { [T in NodeType]: NodeHandler<T> } = {
@@ -518,6 +532,10 @@ interface NodeHandler<T extends NodeType = NodeType> {
     node: Entry<T>,
     index: NextPath<T>,
   ): [ExternalTypedValue<T>, ExternalTypedValue<T>] | null
+  merge(
+    left: ExternalTypedValue<T>,
+    right: ExternalTypedValue<T>,
+  ): ExternalTypedValue<T> | null
 }
 
 // State manager

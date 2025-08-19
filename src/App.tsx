@@ -556,11 +556,8 @@ const TextHandler: NodeHandler<'text'> = {
     return { type: 'text', value: left.value + right.value }
   },
   select(state, { type, key, value }, next) {
-    const start = {
-      type,
-      key,
-      offset: next != null ? next.index : value.length,
-    }
+    const offset = next != null ? next.index : value.length
+    const start = { type, key, offset }
     state.setCursor({ start, end: start })
   },
 }

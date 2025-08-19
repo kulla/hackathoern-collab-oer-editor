@@ -82,7 +82,7 @@ export default function App() {
     [manager],
   )
 
-  const handleSelectionChange = useCallback(() => {
+  const updateCursorFromSelection = useCallback(() => {
     const selection = document.getSelection()
     const cursor = getCursor(selection)
     if (!isEqual(cursor, manager.getState().getCursor())) {
@@ -91,12 +91,12 @@ export default function App() {
   }, [manager])
 
   useEffect(() => {
-    document.addEventListener('selectionchange', handleSelectionChange)
+    document.addEventListener('selectionchange', updateCursorFromSelection)
 
     return () => {
-      document.removeEventListener('selectionchange', handleSelectionChange)
+      document.removeEventListener('selectionchange', updateCursorFromSelection)
     }
-  }, [handleSelectionChange])
+  }, [updateCursorFromSelection])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Use updateCount to trigger re-render for each state change
   useLayoutEffect(() => {

@@ -337,7 +337,7 @@ const ContentHandler: NodeHandler<'content'> = {
     return index
   },
   splitAt() {
-    // Investigate if splitting content makes sense
+    // Investigate if splitting content is needed
     return null
   },
   merge() {

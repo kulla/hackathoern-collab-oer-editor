@@ -438,10 +438,9 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
 
     return { type: 'paragraph', value }
   },
-  select(state, { type, key, value }, next) {
+  select(state, { key, value }, next) {
     if (next == null) {
-      const start = { type, key }
-      state.setCursor({ start, end: start })
+      state.setCollapsedCursor({ key })
     } else {
       const path = next.path as LinkedPath<'text'>
       const child = state.getEntry(value)
@@ -472,10 +471,7 @@ const TextHandler: NodeHandler<'text'> = {
     )
   },
   selectStart(state, { key }) {
-    state.setCursor({
-      start: { key, offset: 0 },
-      end: { key, offset: 0 },
-    })
+    state.setCollapsedCursor({ key, offset: 0 })
   },
   onKeyDown(manager, node, event, startPath, endPath) {
     const start = startPath?.index ?? 0
@@ -487,10 +483,7 @@ const TextHandler: NodeHandler<'text'> = {
           node.key,
           (prev) => prev.slice(0, start) + event.key + prev.slice(end),
         )
-        state.setCursor({
-          start: { key: node.key, offset: start + 1 },
-          end: { key: node.key, offset: start + 1 },
-        })
+        state.setCollapsedCursor({ key: node.key, offset: start + 1 })
       })
 
       return true
@@ -502,10 +495,7 @@ const TextHandler: NodeHandler<'text'> = {
     ) {
       manager.update((state) => {
         state.update(node.key, (prev) => prev.slice(0, start) + prev.slice(end))
-        state.setCursor({
-          start: { key: node.key, offset: start },
-          end: { key: node.key, offset: start },
-        })
+        state.setCollapsedCursor({ key: node.key, offset: start })
       })
 
       return true
@@ -517,10 +507,7 @@ const TextHandler: NodeHandler<'text'> = {
           node.key,
           (prev) => prev.slice(0, start - 1) + prev.slice(start),
         )
-        state.setCursor({
-          start: { key: node.key, offset: start - 1 },
-          end: { key: node.key, offset: start - 1 },
-        })
+        state.setCollapsedCursor({ key: node.key, offset: start - 1 })
       })
 
       return true
@@ -555,10 +542,9 @@ const TextHandler: NodeHandler<'text'> = {
   merge(left, right) {
     return { type: 'text', value: left.value + right.value }
   },
-  select(state, { type, key, value }, next) {
+  select(state, { key, value }, next) {
     const offset = next != null ? next.index : value.length
-    const start = { type, key, offset }
-    state.setCursor({ start, end: start })
+    state.setCollapsedCursor({ key, offset })
   },
 }
 
@@ -730,6 +716,10 @@ class WritableState extends ReadonlyState {
 
   setCursor(cursor: Cursor | null) {
     this.cursor = cursor
+  }
+
+  setCollapsedCursor(position: Position) {
+    this.setCursor({ start: position, end: position })
   }
 
   private set<T extends NodeType>(key: Key<T>, entry: Entry<T>) {

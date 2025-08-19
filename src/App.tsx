@@ -620,15 +620,13 @@ function getCursor(selection: Selection | null): Cursor | null {
   if (selection == null || selection.rangeCount === 0) return null
 
   const range = selection.getRangeAt(0)
+
   const startPosition = getPosition(range.startContainer, range.startOffset)
   const endPosition = getPosition(range.endContainer, range.endOffset)
 
   if (startPosition == null || endPosition == null) return null
 
-  return {
-    start: startPosition,
-    end: endPosition,
-  }
+  return { start: startPosition, end: endPosition }
 }
 
 function getPosition(

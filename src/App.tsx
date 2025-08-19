@@ -336,6 +336,10 @@ const ContentHandler: NodeHandler<'content'> = {
 
     return index
   },
+  splitAt() {
+    // Investigate if splitting content makes sense
+    return null
+  },
 }
 
 const ParagraphHandler: NodeHandler<'paragraph'> = {
@@ -369,6 +373,19 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
     throw new Error(
       `childKey ${childKey} is not a valid child of paragraph node ${node.key}`,
     )
+  },
+  splitAt(_, next) {
+    if (next == null) return null
+
+    const { entry: textEntry, next: textNext } = next.path as LinkedPath<'text'>
+    const split = getHandler(textEntry.type).splitAt(textEntry, textNext)
+
+    return split != null
+      ? [
+          { type: 'paragraph', value: split[0] },
+          { type: 'paragraph', value: split[1] },
+        ]
+      : null
   },
 }
 
@@ -460,6 +477,14 @@ const TextHandler: NodeHandler<'text'> = {
       `getIndexWithin is not applicable for 'text' nodes, received key: ${childKey}`,
     )
   },
+  splitAt({ value }, next) {
+    if (next == null) return null
+
+    return [
+      { type: 'text', value: value.slice(0, next.index) },
+      { type: 'text', value: value.slice(next.index) },
+    ]
+  },
 }
 
 const handlers: { [T in NodeType]: NodeHandler<T> } = {
@@ -489,6 +514,10 @@ interface NodeHandler<T extends NodeType = NodeType> {
   ): boolean
   selectStart(state: WritableState, node: Entry<T>): void
   getIndexWithin(node: Entry<T>, childKey: Key): IndexType<T>
+  splitAt(
+    node: Entry<T>,
+    index: NextPath<T>,
+  ): [ExternalTypedValue<T>, ExternalTypedValue<T>] | null
 }
 
 // State manager
@@ -720,6 +749,7 @@ interface LinkedPath<
   next: NextPath<T, I>
 }
 
+// To-Do: Shall we use a non-nullable type for `NextPath`?
 type NextPath<T extends NodeType, I extends IndexType<T> = IndexType<T>> = {
   index: I
   path: T extends 'text' ? null : LinkedPath

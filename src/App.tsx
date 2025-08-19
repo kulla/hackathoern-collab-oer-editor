@@ -114,13 +114,13 @@ export default function App() {
 
     const range = document.createRange()
 
-    if ('offset' in start) {
+    if (start.type === 'character') {
       range.setStart(startNode.firstChild ?? startNode, start.offset)
     } else {
       range.setStart(startNode, 0)
     }
 
-    if ('offset' in end) {
+    if (end.type === 'character') {
       range.setEnd(endNode.firstChild ?? endNode, end.offset)
     } else {
       range.setEnd(endNode, 0)
@@ -435,7 +435,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
   },
   select(state, { key, value }, next) {
     if (next == null) {
-      state.setCollapsedCursor({ key })
+      state.setCollapsedCursor({ type: 'node', key })
     } else {
       const path = next.path as LinkedPath<'text'>
       const child = state.getEntry(value)
@@ -466,7 +466,7 @@ const TextHandler: NodeHandler<'text'> = {
     )
   },
   selectStart(state, { key }) {
-    state.setCollapsedCursor({ key, offset: 0 })
+    state.setCollapsedCursor({ type: 'character', key, offset: 0 })
   },
   onKeyDown(manager, node, event, startPath, endPath) {
     const start = startPath?.index ?? 0
@@ -478,7 +478,11 @@ const TextHandler: NodeHandler<'text'> = {
           node.key,
           (prev) => prev.slice(0, start) + event.key + prev.slice(end),
         )
-        state.setCollapsedCursor({ key: node.key, offset: start + 1 })
+        state.setCollapsedCursor({
+          type: 'character',
+          key: node.key,
+          offset: start + 1,
+        })
       })
 
       return true
@@ -490,7 +494,11 @@ const TextHandler: NodeHandler<'text'> = {
     ) {
       manager.update((state) => {
         state.update(node.key, (prev) => prev.slice(0, start) + prev.slice(end))
-        state.setCollapsedCursor({ key: node.key, offset: start })
+        state.setCollapsedCursor({
+          type: 'character',
+          key: node.key,
+          offset: start,
+        })
       })
 
       return true
@@ -502,7 +510,11 @@ const TextHandler: NodeHandler<'text'> = {
           node.key,
           (prev) => prev.slice(0, start - 1) + prev.slice(start),
         )
-        state.setCollapsedCursor({ key: node.key, offset: start - 1 })
+        state.setCollapsedCursor({
+          type: 'character',
+          key: node.key,
+          offset: start - 1,
+        })
       })
 
       return true
@@ -539,7 +551,7 @@ const TextHandler: NodeHandler<'text'> = {
   },
   select(state, { key, value }, next) {
     const offset = next != null ? next.index : value.length
-    state.setCollapsedCursor({ key, offset })
+    state.setCollapsedCursor({ type: 'character', key, offset })
   },
 }
 
@@ -747,7 +759,7 @@ function getPosition(
   node: Node | null,
   offset: number | null,
 ): Position | null {
-  if (node == null || offset == null) return null
+  if (node == null) return null
 
   const htmlNode = node instanceof HTMLElement ? node : node.parentElement
 
@@ -757,7 +769,9 @@ function getPosition(
 
   if (!isKey(key)) return null
 
-  return isKeyType('text', key) ? { key, offset } : { key }
+  return isKeyType('text', key) && offset != null
+    ? { type: 'character', key, offset }
+    : { type: 'node', key }
 }
 
 function getTargetNodeStack(
@@ -834,19 +848,16 @@ interface Cursor {
   end: Position
 }
 
-type Position<T extends NodeType = NodeType> = T extends Exclude<
-  NodeType,
-  'text'
->
-  ? NodePosition<T>
-  : TextPosition
+type Position = CharacterPosition | NodePosition
 
-interface TextPosition {
+interface CharacterPosition {
+  type: 'character'
   key: Key<'text'>
   offset: number
 }
 
-interface NodePosition<T extends Exclude<NodeType, 'text'>> {
+interface NodePosition<T extends NodeType = NodeType> {
+  type: 'node'
   key: Key<T>
 }
 

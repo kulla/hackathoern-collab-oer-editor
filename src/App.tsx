@@ -66,13 +66,8 @@ export default function App() {
       }
 
       if (
-        (event.ctrlKey &&
-          (event.key === 'c' || event.key === 'v' || event.key === 'x')) ||
-        event.key === 'Enter' ||
-        event.key === 'Tab' ||
-        event.key === 'Delete' ||
-        event.key === 'Backspace' ||
-        event.key === 'Escape' ||
+        (event.ctrlKey && ['c', 'v', 'x'].includes(event.key)) ||
+        ['Enter', 'Tab', 'Delete', 'Backspace'].includes(event.key) ||
         (event.key.length === 1 && !event.ctrlKey && !event.metaKey)
       ) {
         event.preventDefault()

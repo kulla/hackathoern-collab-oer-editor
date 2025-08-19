@@ -439,7 +439,12 @@ const TextHandler: NodeHandler<'text'> = {
   },
   render(_, { key, value }) {
     return (
-      <span key={key} id={key} data-key={key} className="text whitespace-pre-wrap">
+      <span
+        key={key}
+        id={key}
+        data-key={key}
+        className="text whitespace-pre-wrap"
+      >
         {value}
       </span>
     )

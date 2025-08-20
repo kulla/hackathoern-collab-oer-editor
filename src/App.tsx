@@ -544,6 +544,124 @@ interface NodeHandler<T extends NodeType = NodeType> {
   ): ExternalTypedValue<T> | null
 }
 
+// Selection
+
+function getCursor(selection: Selection | null): Cursor | null {
+  if (selection == null || selection.rangeCount === 0) return null
+
+  const range = selection.getRangeAt(0)
+
+  const startPoint = getPoint(range.startContainer, range.startOffset)
+  const endPoint = getPoint(range.endContainer, range.endOffset)
+
+  if (startPoint == null || endPoint == null) return null
+
+  return { start: startPoint, end: endPoint }
+}
+
+function getPoint(node: Node | null, offset: number | null): Point | null {
+  if (node == null) return null
+
+  const htmlNode = node instanceof HTMLElement ? node : node.parentElement
+
+  if (htmlNode == null) return null
+
+  const { key } = htmlNode.dataset
+
+  if (!isKey(key)) return null
+
+  return isKeyType('text', key) && offset != null
+    ? { type: 'character', key, offset }
+    : { type: 'node', key }
+}
+
+function getTargetNodeStack(
+  state: ReadonlyState,
+  cursor: Cursor,
+): { targetNodeStack: LinkedPath[]; start: LinkedPath; end: LinkedPath } {
+  let start = getPathToRoot(state, cursor.start)
+  let end = getPathToRoot(state, cursor.end)
+  const targetNodeStack: LinkedPath[] = []
+
+  while (start.entry.key === end.entry.key) {
+    targetNodeStack.push(start)
+
+    if (
+      start.next?.path != null &&
+      end.next?.path != null &&
+      start.next.index === end.next.index
+    ) {
+      start = start.next.path
+      end = end.next.path
+    } else {
+      break
+    }
+  }
+
+  return { targetNodeStack, start, end }
+}
+
+function getPathToRoot(state: ReadonlyState, position: Point): LinkedPath {
+  const entry = state.getEntry(position.key)
+  let result: LinkedPath =
+    'offset' in position
+      ? { entry, next: { index: position.offset, path: null } }
+      : { entry, next: null }
+
+  while (result.entry.parent !== null) {
+    const parentEntry = state.getEntry(result.entry.parent)
+    const index = getHandler(parentEntry.type).getIndexWithin(
+      parentEntry,
+      result.entry.key,
+    )
+
+    result = { entry: parentEntry, next: { index, path: result } }
+  }
+
+  return result
+}
+
+interface LinkedPath<
+  T extends NodeType = NodeType,
+  I extends IndexType<T> = IndexType<T>,
+> {
+  entry: Entry<T>
+  next: NextPath<T, I>
+}
+
+// To-Do: Shall we use a non-nullable type for `NextPath`?
+type NextPath<T extends NodeType, I extends IndexType<T> = IndexType<T>> = {
+  index: I
+  path: T extends 'text' ? null : LinkedPath
+} | null
+
+type IndexType<T extends NodeType> = IndexTypeOf<ExternalValue<T>>
+type IndexTypeOf<V extends ExternalValue> = V extends string | Array<unknown>
+  ? number
+  : V extends ExternalValue
+    ? never
+    : V extends object
+      ? keyof V
+      : never
+
+interface Cursor {
+  start: Point
+  end: Point
+}
+
+type Point = CharacterPoint | NodePoint
+
+interface CharacterPoint {
+  type: 'character'
+  key: Key<'text'>
+  offset: number
+}
+
+interface NodePoint<T extends NodeType = NodeType> {
+  type: 'node'
+  key: Key<T>
+}
+
 // State manager
 
 function useStateManager(initialContent: ExternalTypedValue) {
@@ -687,125 +805,6 @@ class WritableState extends ReadonlyState {
     return `${this.lastKey}:${type}`
   }
 }
-
-// Selection
-
-function getCursor(selection: Selection | null): Cursor | null {
-  if (selection == null || selection.rangeCount === 0) return null
-
-  const range = selection.getRangeAt(0)
-
-  const startPoint = getPoint(range.startContainer, range.startOffset)
-  const endPoint = getPoint(range.endContainer, range.endOffset)
-
-  if (startPoint == null || endPoint == null) return null
-
-  return { start: startPoint, end: endPoint }
-}
-
-function getPoint(node: Node | null, offset: number | null): Point | null {
-  if (node == null) return null
-
-  const htmlNode = node instanceof HTMLElement ? node : node.parentElement
-
-  if (htmlNode == null) return null
-
-  const { key } = htmlNode.dataset
-
-  if (!isKey(key)) return null
-
-  return isKeyType('text', key) && offset != null
-    ? { type: 'character', key, offset }
-    : { type: 'node', key }
-}
-
-function getTargetNodeStack(
-  state: ReadonlyState,
-  cursor: Cursor,
-): { targetNodeStack: LinkedPath[]; start: LinkedPath; end: LinkedPath } {
-  let start = getPathToRoot(state, cursor.start)
-  let end = getPathToRoot(state, cursor.end)
-  const targetNodeStack: LinkedPath[] = []
-
-  while (start.entry.key === end.entry.key) {
-    targetNodeStack.push(start)
-
-    if (
-      start.next?.path != null &&
-      end.next?.path != null &&
-      start.next.index === end.next.index
-    ) {
-      start = start.next.path
-      end = end.next.path
-    } else {
-      break
-    }
-  }
-
-  return { targetNodeStack, start, end }
-}
-
-function getPathToRoot(state: ReadonlyState, position: Point): LinkedPath {
-  const entry = state.getEntry(position.key)
-  let result: LinkedPath =
-    'offset' in position
-      ? { entry, next: { index: position.offset, path: null } }
-      : { entry, next: null }
-
-  while (result.entry.parent !== null) {
-    const parentEntry = state.getEntry(result.entry.parent)
-    const index = getHandler(parentEntry.type).getIndexWithin(
-      parentEntry,
-      result.entry.key,
-    )
-
-    result = { entry: parentEntry, next: { index, path: result } }
-  }
-
-  return result
-}
-
-interface LinkedPath<
-  T extends NodeType = NodeType,
-  I extends IndexType<T> = IndexType<T>,
-> {
-  entry: Entry<T>
-  next: NextPath<T, I>
-}
-
-// To-Do: Shall we use a non-nullable type for `NextPath`?
-type NextPath<T extends NodeType, I extends IndexType<T> = IndexType<T>> = {
-  index: I
-  path: T extends 'text' ? null : LinkedPath
-} | null
-
-type IndexType<T extends NodeType> = IndexTypeOf<ExternalValue<T>>
-type IndexTypeOf<V extends ExternalValue> = V extends string | Array<unknown>
-  ? number
-  : V extends ExternalValue
-    ? never
-    : V extends object
-      ? keyof V
-      : never
-
-interface Cursor {
-  start: Point
-  end: Point
-}
-
-type Point = CharacterPoint | NodePoint
-
-interface CharacterPoint {
-  type: 'character'
-  key: Key<'text'>
-  offset: number
-}
-
-interface NodePoint<T extends NodeType = NodeType> {
-  type: 'node'
-  key: Key<T>
-}
-
 // Description for the internal structure of the editor
 
 interface Entry<T extends NodeType = NodeType> {

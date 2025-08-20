@@ -36,3 +36,4 @@ bun update
 ## Possible improvements
 
 - When a non editable entry is selected => focus it.
+- Move `rootKey` to the state.

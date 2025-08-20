@@ -47,8 +47,8 @@ export default function App() {
           manager,
           targetNode,
           event,
-          start.next,
-          end.next,
+          start,
+          end,
         )
 
         if (isEventHandled) {
@@ -114,14 +114,14 @@ export default function App() {
 
     const range = document.createRange()
 
-    if (start.type === 'character') {
-      range.setStart(startNode.firstChild ?? startNode, start.offset)
+    if (start.kind === 'character') {
+      range.setStart(startNode.firstChild ?? startNode, start.index)
     } else {
       range.setStart(startNode, 0)
     }
 
-    if (end.type === 'character') {
-      range.setEnd(endNode.firstChild ?? endNode, end.offset)
+    if (end.kind === 'character') {
+      range.setEnd(endNode.firstChild ?? endNode, end.index)
     } else {
       range.setEnd(endNode, 0)
     }
@@ -217,24 +217,33 @@ const ContentHandler: NodeHandler<'content'> = {
     )
   },
   onKeyDown(manager, node, event, startPath, endPath) {
-    const start = startPath?.index ?? 0
-    const end = endPath?.index ?? node.value.length
+    const { index: startIndex, next: startNext } = startPath
+    const { index: endIndex, next: endNext } = endPath
+
+    const start = startIndex ?? 0
+    const end = endIndex ?? node.value.length
 
     if (event.key === 'Delete' || event.key === 'Backspace') {
       manager.update((state) => {
         state.update(node.key, (children) => {
           const left =
-            startPath != null
+            startNext != null
               ? ParagraphHandler.splitAt(
-                  startPath.path.entry as Entry<'paragraph'>,
-                  startPath.path.next as NextPath<'paragraph'>,
+                  ParagraphHandler.read(
+                    state,
+                    startNext.entry.key as Key<'paragraph'>,
+                  ),
+                  startNext as Path<'index', 'paragraph'>,
                 )?.[0]
               : null
           const right =
-            endPath != null
+            endNext != null
               ? ParagraphHandler.splitAt(
-                  endPath.path.entry as Entry<'paragraph'>,
-                  endPath.path.next as NextPath<'paragraph'>,
+                  ParagraphHandler.read(
+                    state,
+                    endNext.entry.key as Key<'paragraph'>,
+                  ),
+                  endNext as Path<'index', 'paragraph'>,
                 )?.[1]
               : null
 
@@ -255,10 +264,12 @@ const ContentHandler: NodeHandler<'content'> = {
           if (newChildren.length > 0) {
             const newEntry = state.getEntry(newChildren[start])
 
-            if (startPath != null) {
-              const nextPath = startPath.path as LinkedPath<'paragraph'>
-
-              ParagraphHandler.select(state, newEntry, nextPath.next)
+            if (startNext != null) {
+              ParagraphHandler.select(
+                state,
+                newEntry,
+                startNext as Path<'index', 'paragraph'>,
+              )
             } else {
               ParagraphHandler.selectStart(state, newEntry)
             }
@@ -309,17 +320,6 @@ const ContentHandler: NodeHandler<'content'> = {
     const firstChild = state.getEntry(value[0])
     ParagraphHandler.selectStart(state, firstChild)
   },
-  getIndexWithin(node, childKey) {
-    // To-Do: Can we type `childkey` so that a type casting is not needed?
-    const index = node.value.indexOf(childKey as Key<'paragraph'>)
-
-    invariant(
-      index !== -1,
-      `childKey ${childKey} is not a valid child of content node ${node.key}`,
-    )
-
-    return index
-  },
   splitAt() {
     // Investigate if splitting content is needed
     return null
@@ -330,6 +330,26 @@ const ContentHandler: NodeHandler<'content'> = {
   },
   select() {
     throw new Error('not implemented yet')
+  },
+  getPathToRoot(state, { key }, next) {
+    const entry = state.getEntry(key)
+    const current: Path<'entry', 'content'> =
+      next == null
+        ? { kind: 'node', entry }
+        : {
+            kind: 'parent',
+            entry,
+            index: entry.value.indexOf(next.entry.key as Key<'paragraph'>),
+            next,
+          }
+
+    if (entry.parent === null) return current
+
+    return getHandler(parseType(entry.parent)).getPathToRoot(
+      state,
+      { kind: 'node', key: entry.parent },
+      current,
+    )
   },
 }
 
@@ -356,19 +376,13 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
     const textEntry = state.getEntry(value)
     TextHandler.selectStart(state, textEntry)
   },
-  getIndexWithin(node, childKey) {
-    invariant(
-      node.value === childKey,
-      `childKey ${childKey} is not a valid child of paragraph node ${node.key}`,
-    )
-
-    return null as never // No index for a single child
-  },
-  splitAt(_, next) {
+  splitAt({ value }, { next }) {
     if (next == null) return null
 
-    const { entry: textEntry, next: textNext } = next.path as LinkedPath<'text'>
-    const split = getHandler(textEntry.type).splitAt(textEntry, textNext)
+    const split = getHandler(value.type).splitAt(
+      value,
+      next as Path<'index', 'text'>,
+    )
 
     return split != null
       ? [
@@ -384,15 +398,29 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
 
     return { type: 'paragraph', value }
   },
-  select(state, { key, value }, next) {
+  select(state, { key, value }, { next }) {
     if (next == null) {
-      state.setCollapsedCursor({ type: 'node', key })
+      state.setCollapsedCursor({ kind: 'node', key })
     } else {
-      const path = next.path as LinkedPath<'text'>
       const child = state.getEntry(value)
 
-      TextHandler.select(state, child, path.next)
+      TextHandler.select(state, child, next as Path<'index', 'text'>)
     }
+  },
+  getPathToRoot(state, { key }, next) {
+    const entry = state.getEntry(key)
+    const current: Path<'entry', 'paragraph'> =
+      next == null
+        ? { kind: 'node', entry }
+        : { kind: 'parent', entry, index: null as never, next }
+
+    if (entry.parent === null) return current
+
+    return getHandler(parseType(entry.parent)).getPathToRoot(
+      state,
+      { kind: 'node', key: entry.parent },
+      current,
+    )
   },
 }
 
@@ -417,7 +445,7 @@ const TextHandler: NodeHandler<'text'> = {
     )
   },
   selectStart(state, { key }) {
-    state.setCollapsedCursor({ type: 'character', key, offset: 0 })
+    state.setCollapsedCursor({ kind: 'character', key, index: 0 })
   },
   onKeyDown(manager, node, event, startPath, endPath) {
     const start = startPath?.index ?? 0
@@ -430,9 +458,9 @@ const TextHandler: NodeHandler<'text'> = {
           (prev) => prev.slice(0, start) + event.key + prev.slice(end),
         )
         state.setCollapsedCursor({
-          type: 'character',
+          kind: 'character',
           key: node.key,
-          offset: start + 1,
+          index: start + 1,
         })
       })
 
@@ -446,9 +474,9 @@ const TextHandler: NodeHandler<'text'> = {
       manager.update((state) => {
         state.update(node.key, (prev) => prev.slice(0, start) + prev.slice(end))
         state.setCollapsedCursor({
-          type: 'character',
+          kind: 'character',
           key: node.key,
-          offset: start,
+          index: start,
         })
       })
 
@@ -462,9 +490,9 @@ const TextHandler: NodeHandler<'text'> = {
           (prev) => prev.slice(0, start - 1) + prev.slice(start),
         )
         state.setCollapsedCursor({
-          type: 'character',
+          kind: 'character',
           key: node.key,
-          offset: start - 1,
+          index: start - 1,
         })
       })
 
@@ -484,25 +512,38 @@ const TextHandler: NodeHandler<'text'> = {
 
     return false
   },
-  getIndexWithin(_node, childKey) {
-    throw new Error(
-      `getIndexWithin is not applicable for 'text' nodes, received key: ${childKey}`,
-    )
-  },
-  splitAt({ value }, next) {
-    if (next == null) return null
+  splitAt({ value }, { index }) {
+    if (index == null) return null
 
     return [
-      { type: 'text', value: value.slice(0, next.index) },
-      { type: 'text', value: value.slice(next.index) },
+      { type: 'text', value: value.slice(0, index) },
+      { type: 'text', value: value.slice(index) },
     ]
   },
   merge(left, right) {
     return { type: 'text', value: left.value + right.value }
   },
-  select(state, { key, value }, next) {
-    const offset = next != null ? next.index : value.length
-    state.setCollapsedCursor({ type: 'character', key, offset })
+  select(state, { key, value }, { index }) {
+    state.setCollapsedCursor({
+      kind: 'character',
+      key,
+      index: index ?? value.length,
+    })
+  },
+  getPathToRoot(state, { kind, key, index }) {
+    const entry = state.getEntry(key)
+    const currentPath: Path<'entry'> =
+      kind === 'character'
+        ? { kind: 'character', entry, index: index }
+        : { kind: 'node', entry }
+
+    if (entry.parent === null) return currentPath
+
+    return getHandler(parseType(entry.parent)).getPathToRoot(
+      state,
+      { kind: 'node', key: entry.parent },
+      currentPath,
+    )
   },
 }
 
@@ -528,20 +569,24 @@ interface NodeHandler<T extends NodeType = NodeType> {
     manager: StateManager,
     node: Entry<T>,
     event: KeyboardEvent,
-    start: NextPath<T>,
-    end: NextPath<T>,
+    start: Path<'entry', T>,
+    end: Path<'entry', T>,
   ): boolean
-  select(state: WritableState, node: Entry<T>, at: NextPath<T>): void
+  select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void
   selectStart(state: WritableState, node: Entry<T>): void
-  getIndexWithin(node: Entry<T>, childKey: Key): IndexType<T>
   splitAt(
-    node: Entry<T>,
-    index: NextPath<T>,
+    node: ExternalTypedValue<T>,
+    index: Path<'index', T>,
   ): [ExternalTypedValue<T>, ExternalTypedValue<T>] | null
   merge(
     left: ExternalTypedValue<T>,
     right: ExternalTypedValue<T>,
   ): ExternalTypedValue<T> | null
+  getPathToRoot(
+    state: ReadonlyState,
+    at: Point<T>,
+    next?: Path<'entry'>,
+  ): Path<'entry'>
 }
 
 // Selection
@@ -571,28 +616,38 @@ function getPoint(node: Node | null, offset: number | null): Point | null {
   if (!isKey(key)) return null
 
   return isKeyType('text', key) && offset != null
-    ? { type: 'character', key, offset }
-    : { type: 'node', key }
+    ? { kind: 'character', key, index: offset }
+    : { kind: 'node', key }
 }
 
 function getTargetNodeStack(
   state: ReadonlyState,
   cursor: Cursor,
-): { targetNodeStack: LinkedPath[]; start: LinkedPath; end: LinkedPath } {
-  let start = getPathToRoot(state, cursor.start)
-  let end = getPathToRoot(state, cursor.end)
-  const targetNodeStack: LinkedPath[] = []
+): {
+  targetNodeStack: Path<'entry'>[]
+  start: Path<'entry'>
+  end: Path<'entry'>
+} {
+  let start = getHandler(parseType(cursor.start.key)).getPathToRoot(
+    state,
+    cursor.start,
+  )
+  let end = getHandler(parseType(cursor.end.key)).getPathToRoot(
+    state,
+    cursor.end,
+  )
+  const targetNodeStack: Path<'entry'>[] = []
 
   while (start.entry.key === end.entry.key) {
     targetNodeStack.push(start)
 
     if (
-      start.next?.path != null &&
-      end.next?.path != null &&
+      start.next != null &&
+      end.next != null &&
       start.next.index === end.next.index
     ) {
-      start = start.next.path
-      end = end.next.path
+      start = start.next
+      end = end.next
     } else {
       break
     }
@@ -601,39 +656,53 @@ function getTargetNodeStack(
   return { targetNodeStack, start, end }
 }
 
-function getPathToRoot(state: ReadonlyState, point: Point): LinkedPath {
-  const entry = state.getEntry(point.key)
-  let result: LinkedPath =
-    point.type === 'character'
-      ? { entry, next: { index: point.offset, path: null } }
-      : { entry, next: null }
-
-  while (result.entry.parent !== null) {
-    const parentEntry = state.getEntry(result.entry.parent)
-    const index = getHandler(parentEntry.type).getIndexWithin(
-      parentEntry,
-      result.entry.key,
-    )
-
-    result = { entry: parentEntry, next: { index, path: result } }
-  }
-
-  return result
+// TODO: Update to "caret" or "range"
+interface Cursor {
+  start: Point
+  end: Point
 }
 
-interface LinkedPath<
-  T extends NodeType = NodeType,
-  I extends IndexType<T> = IndexType<T>,
-> {
-  entry: Entry<T>
-  next: NextPath<T, I>
-}
+type Point<T extends NodeType = NodeType> = { [S in T]: PointOfType<S> }[T]
+type PointOfType<T extends NodeType> = T extends 'text'
+  ? CharacterLeaf<'key'> | NodeLeaf<'key', T>
+  : NodeLeaf<'key', T>
 
-// To-Do: Shall we use a non-nullable type for `NextPath`?
-type NextPath<T extends NodeType, I extends IndexType<T> = IndexType<T>> = {
-  index: I
-  path: T extends 'text' ? null : LinkedPath
-} | null
+type Path<P extends PathType, T extends NodeType = NodeType> = {
+  [S in T]: PathOfType<P, S>
+}[T]
+type PathOfType<
+  P extends PathType,
+  T extends NodeType,
+> = isParent<T> extends true
+  ? Parent<P, T> | NodeLeaf<P, T>
+  : T extends 'text'
+    ? CharacterLeaf<P> | NodeLeaf<P, T>
+    : NodeLeaf<P, T>
+
+type Parent<P extends PathType, T extends NodeType = NodeType> = {
+  kind: 'parent'
+  index: IndexType<T>
+  next: Path<P>
+} & Extension<P, T>
+
+type NodeLeaf<P extends PathType, T extends NodeType = NodeType> = {
+  kind: 'node'
+  index?: never
+  next?: never
+} & Extension<P, T>
+
+type CharacterLeaf<P extends PathType> = {
+  kind: 'character'
+  index: number
+  next?: never
+} & Extension<P, 'text'>
+
+type Extension<P extends PathType, T extends NodeType> = P extends 'key'
+  ? { key: Key<T> }
+  : P extends 'entry'
+    ? { entry: Entry<T> }
+    : unknown
+type PathType = 'key' | 'entry' | 'index'
 
 type IndexType<T extends NodeType> = IndexTypeOf<ExternalValue<T>>
 type IndexTypeOf<V extends ExternalValue> = V extends string | Array<unknown>
@@ -643,24 +712,6 @@ type IndexTypeOf<V extends ExternalValue> = V extends string | Array<unknown>
     : V extends object
       ? keyof V
       : never
-
-interface Cursor {
-  start: Point
-  end: Point
-}
-
-type Point = CharacterPoint | NodePoint
-
-interface CharacterPoint {
-  type: 'character'
-  key: Key<'text'>
-  offset: number
-}
-
-interface NodePoint<T extends NodeType = NodeType> {
-  type: 'node'
-  key: Key<T>
-}
 
 // State manager
 
@@ -796,7 +847,7 @@ class WritableState extends ReadonlyState {
   }
 
   private set<T extends NodeType>(key: Key<T>, entry: Entry<T>) {
-    this.entries.set(key, entry)
+    this.entries.set(key, entry as Entry)
   }
 
   private generateKey<T extends NodeType>(type: T): Key<T> {
@@ -807,7 +858,8 @@ class WritableState extends ReadonlyState {
 }
 // Description for the internal structure of the editor
 
-interface Entry<T extends NodeType = NodeType> {
+type Entry<T extends NodeType = NodeType> = { [S in T]: EntryOfType<S> }[T]
+interface EntryOfType<T extends NodeType = NodeType> {
   type: T
   key: Key<T>
   parent: ParentKey
@@ -835,7 +887,8 @@ type ComputedEntryValue<V extends ExternalValue> = V extends ExternalTypedValue
         : never
 
 type ParentKey = Key | null
-type Key<T extends NodeType = NodeType> = `${number}:${T}`
+type Key<T extends NodeType = NodeType> = { [S in T]: KeyOfType<S> }[T]
+type KeyOfType<T extends NodeType> = `${number}:${T}`
 
 function isKeyType<T extends NodeType>(type: T, key: Key): key is Key<T> {
   return key.endsWith(type)
@@ -869,6 +922,11 @@ interface ExternalTypedValue<T extends NodeType = NodeType> {
   type: T
   value: ExternalValue<T>
 }
+
+type isParent<T extends NodeType> = ExternalValue<T> extends PrimitiveValue
+  ? false
+  : true
+type PrimitiveValue = string | boolean | number
 
 type ExternalValue<T extends NodeType = NodeType> = ExternalValueMap[T]
 

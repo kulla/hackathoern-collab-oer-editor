@@ -229,21 +229,15 @@ const ContentHandler: NodeHandler<'content'> = {
           const left =
             startNext != null
               ? ParagraphHandler.splitAt(
-                  ParagraphHandler.read(
-                    state,
-                    startNext.entry.key as Key<'paragraph'>,
-                  ),
-                  startNext as Path<'index', 'paragraph'>,
+                  ParagraphHandler.read(state, startNext.entry.key),
+                  startNext,
                 )?.[0]
               : null
           const right =
             endNext != null
               ? ParagraphHandler.splitAt(
-                  ParagraphHandler.read(
-                    state,
-                    endNext.entry.key as Key<'paragraph'>,
-                  ),
-                  endNext as Path<'index', 'paragraph'>,
+                  ParagraphHandler.read(state, endNext.entry.key),
+                  endNext,
                 )?.[1]
               : null
 
@@ -265,11 +259,7 @@ const ContentHandler: NodeHandler<'content'> = {
             const newEntry = state.getEntry(newChildren[start])
 
             if (startNext != null) {
-              ParagraphHandler.select(
-                state,
-                newEntry,
-                startNext as Path<'index', 'paragraph'>,
-              )
+              ParagraphHandler.select(state, newEntry, startNext)
             } else {
               ParagraphHandler.selectStart(state, newEntry)
             }
@@ -339,17 +329,12 @@ const ContentHandler: NodeHandler<'content'> = {
         : {
             kind: 'parent',
             entry,
-            index: entry.value.indexOf(next.entry.key as Key<'paragraph'>),
+            index: entry.value.indexOf(next.entry.key),
             next,
           }
 
-    if (entry.parent === null) return current
-
-    return getHandler(parseType(entry.parent)).getPathToRoot(
-      state,
-      { kind: 'node', key: entry.parent },
-      current,
-    )
+    // TODO: Handle case where entry.parent is null
+    return current
   },
 }
 
@@ -379,10 +364,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
   splitAt({ value }, { next }) {
     if (next == null) return null
 
-    const split = getHandler(value.type).splitAt(
-      value,
-      next as Path<'index', 'text'>,
-    )
+    const split = getHandler(value.type).splitAt(value, next)
 
     return split != null
       ? [
@@ -404,7 +386,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
     } else {
       const child = state.getEntry(value)
 
-      TextHandler.select(state, child, next as Path<'index', 'text'>)
+      TextHandler.select(state, child, next)
     }
   },
   getPathToRoot(state, { key }, next) {
@@ -585,7 +567,7 @@ interface NodeHandler<T extends NodeType = NodeType> {
   getPathToRoot(
     state: ReadonlyState,
     at: Point<T>,
-    next?: Path<'entry'>,
+    next?: Path<'entry', ChildType<T>>,
   ): Path<'entry'>
 }
 
@@ -682,7 +664,7 @@ type PathOfType<
 type Parent<P extends PathType, T extends NodeType = NodeType> = {
   kind: 'parent'
   index: IndexType<T>
-  next: Path<P>
+  next: Path<P, ChildType<T>>
 } & Extension<P, T>
 
 type NodeLeaf<P extends PathType, T extends NodeType = NodeType> = {
@@ -703,6 +685,12 @@ type Extension<P extends PathType, T extends NodeType> = P extends 'key'
     ? { entry: Entry<T> }
     : unknown
 type PathType = 'key' | 'entry' | 'index'
+
+type ChildType<T extends NodeType> = T extends 'content'
+  ? 'paragraph'
+  : T extends 'paragraph'
+    ? 'text'
+    : never
 
 type IndexType<T extends NodeType> = IndexTypeOf<ExternalValue<T>>
 type IndexTypeOf<V extends ExternalValue> = V extends string | Array<unknown>

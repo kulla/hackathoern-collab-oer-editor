@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useReducer } from 'react'
 
 export interface DebugPanelProps<T extends string> {
   labels: Record<T, string>
@@ -15,7 +15,10 @@ export function DebugPanel<T extends string>({
   showOnStartup,
 }: DebugPanelProps<T>) {
   const panelId = useId()
-  const [show, setShow] = useState(showOnStartup)
+  const [show, dispatch] = useReducer(
+    (prev, key: T) => ({ ...prev, [key]: !prev[key] }),
+    showOnStartup,
+  )
 
   const options = Object.keys(labels) as T[]
 
@@ -36,9 +39,7 @@ export function DebugPanel<T extends string>({
               className="toggle"
               checked={show[option]}
               aria-checked={show[option]}
-              onChange={() =>
-                setShow((prev) => ({ ...prev, [option]: !prev[option] }))
-              }
+              onChange={() => dispatch(option)}
             />{' '}
             {labels[option]}
           </label>

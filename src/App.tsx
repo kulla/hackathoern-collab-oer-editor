@@ -26,7 +26,6 @@ const initialContent: ExternalTypedValue<'content'> = {
 
 export default function App() {
   const { manager } = useStateManager(initialContent)
-  const rootEntry = manager.getRootEntry()
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
@@ -139,7 +138,7 @@ export default function App() {
         spellCheck={false}
         onKeyDown={handleKeyDown}
       >
-        {getHandler(rootEntry.type).render(manager.getState(), rootEntry)}
+        {manager.render()}
       </article>
       <DebugPanel
         labels={
@@ -158,15 +157,10 @@ export default function App() {
         }}
         getCurrentValue={{
           html: () =>
-            beautifyHtml(
-              renderToStaticMarkup(
-                getHandler(rootEntry.type).render(
-                  manager.getState(),
-                  rootEntry,
-                ),
-              ),
-              { indent_size: 2, wrap_line_length: 70 },
-            ),
+            beautifyHtml(renderToStaticMarkup(manager.render()), {
+              indent_size: 2,
+              wrap_line_length: 70,
+            }),
           selection: () =>
             JSON.stringify(
               { cursor: manager.getState().getCursor() },
@@ -770,8 +764,9 @@ class StateManager<T extends NodeType = NodeType> {
     return this.state
   }
 
-  getRootEntry(): Entry<T> {
-    return this.state.getEntry(this.rootKey)
+  render(): ReactNode {
+    const rootEntry = this.state.getEntry(this.rootKey)
+    return getHandler(rootEntry.type).render(this.state, rootEntry)
   }
 }
 

@@ -870,13 +870,13 @@ interface ExternalTypedValue<T extends NodeType = NodeType> {
   value: ExternalValue<T>
 }
 
+type ExternalValue<T extends NodeType = NodeType> = ExternalValueMap[T]
+
 interface ExternalValueMap {
   content: ExternalTypedValue<'paragraph'>[]
   paragraph: ExternalTypedValue<'text'>
   text: string
 }
-
-type ExternalValue<T extends NodeType = NodeType> = ExternalValueMap[T]
 
 // Editor node types
 

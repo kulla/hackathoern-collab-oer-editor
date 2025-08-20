@@ -601,11 +601,11 @@ function getTargetNodeStack(
   return { targetNodeStack, start, end }
 }
 
-function getPathToRoot(state: ReadonlyState, position: Point): LinkedPath {
-  const entry = state.getEntry(position.key)
+function getPathToRoot(state: ReadonlyState, point: Point): LinkedPath {
+  const entry = state.getEntry(point.key)
   let result: LinkedPath =
-    'offset' in position
-      ? { entry, next: { index: position.offset, path: null } }
+    point.type === 'character'
+      ? { entry, next: { index: point.offset, path: null } }
       : { entry, next: null }
 
   while (result.entry.parent !== null) {
@@ -791,8 +791,8 @@ class WritableState extends ReadonlyState {
     this.cursor = cursor
   }
 
-  setCollapsedCursor(position: Point) {
-    this.setCursor({ start: position, end: position })
+  setCollapsedCursor(point: Point) {
+    this.setCursor({ start: point, end: point })
   }
 
   private set<T extends NodeType>(key: Key<T>, entry: Entry<T>) {

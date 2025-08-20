@@ -623,11 +623,7 @@ function getTargetNodeStack(
   while (start.entry.key === end.entry.key) {
     targetNodeStack.push(start)
 
-    if (
-      start.next != null &&
-      end.next != null &&
-      start.next.index === end.next.index
-    ) {
+    if (start.next != null && end.next != null && start.index === end.index) {
       start = start.next
       end = end.next
     } else {

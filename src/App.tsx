@@ -209,7 +209,7 @@ const ContentHandler: NodeHandler<'content'> = {
   },
   render(state, { key, value }) {
     return (
-      <div key={key} id={key} data-key={key}>
+      <div id={key} key={key} data-key={key}>
         {value.map((childKey) =>
           ParagraphHandler.render(state, state.getEntry(childKey)),
         )}
@@ -347,7 +347,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
   },
   render(state, { key, value }) {
     return (
-      <p key={key} id={key} data-key={key}>
+      <p id={key} key={key} data-key={key}>
         {TextHandler.render(state, state.getEntry(value))}
       </p>
     )
@@ -407,8 +407,8 @@ const TextHandler: NodeHandler<'text'> = {
   render(_, { key, value }) {
     return (
       <span
-        key={key}
         id={key}
+        key={key}
         data-key={key}
         className="text whitespace-pre-wrap"
       >

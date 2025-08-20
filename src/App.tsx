@@ -11,7 +11,7 @@ import {
 } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
-import { isEqual } from 'es-toolkit'
+import { invariant, isEqual } from 'es-toolkit'
 
 const initialContent: ExternalTypedValue<'content'> = {
   type: 'content',
@@ -360,11 +360,10 @@ const ContentHandler: NodeHandler<'content'> = {
     // To-Do: Can we type `childkey` so that a type casting is not needed?
     const index = node.value.indexOf(childKey as Key<'paragraph'>)
 
-    if (index === -1) {
-      throw new Error(
-        `childKey ${childKey} is not a valid child of content node ${node.key}`,
-      )
-    }
+    invariant(
+      index !== -1,
+      `childKey ${childKey} is not a valid child of content node ${node.key}`,
+    )
 
     return index
   },
@@ -405,13 +404,12 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
     TextHandler.selectStart(state, textEntry)
   },
   getIndexWithin(node, childKey) {
-    if (node.value === childKey) {
-      return null as never // No index for a single child
-    }
-
-    throw new Error(
+    invariant(
+      node.value === childKey,
       `childKey ${childKey} is not a valid child of paragraph node ${node.key}`,
     )
+
+    return null as never // No index for a single child
   },
   splitAt(_, next) {
     if (next == null) return null
@@ -680,10 +678,7 @@ class ReadonlyState {
   getEntry<T extends NodeType>(key: Key<T>): Entry<T> {
     const entry = this.entries.get(key) as Entry<T> | undefined
 
-    // To-Do: Add assert logic
-    if (!entry) {
-      throw new Error(`Entry with key ${key} not found`)
-    }
+    invariant(entry != null, `Entry with key ${key} not found`)
 
     return entry
   }

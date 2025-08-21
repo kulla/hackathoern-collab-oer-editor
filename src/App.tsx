@@ -68,7 +68,6 @@ export default function App() {
         (event.key.length === 1 && !event.ctrlKey && !event.metaKey)
       ) {
         event.preventDefault()
-        return
       }
     },
     [manager],

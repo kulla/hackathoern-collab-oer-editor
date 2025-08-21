@@ -163,6 +163,13 @@ const ContentHandler: NodeHandler<'content'> = {
       },
     })
   },
+  createEmpty(state, parent) {
+    return state.insert({
+      type: 'content',
+      parent,
+      createValue: (key) => [ParagraphHandler.createEmpty(state, key)],
+    })
+  },
   read(state, key) {
     const { type, value } = state.getEntry(key)
     return {
@@ -256,12 +263,7 @@ const ContentHandler: NodeHandler<'content'> = {
           return newChildren
         }
 
-        const newChild = ParagraphHandler.insert(
-          state,
-          { type: 'paragraph', value: { type: 'text', value: '' } },
-          key,
-        )
-
+        const newChild = ParagraphHandler.createEmpty(state, key)
         ParagraphHandler.selectStart(state, state.getEntry(newChild))
 
         return [newChild]
@@ -272,12 +274,7 @@ const ContentHandler: NodeHandler<'content'> = {
     insertNewElement(state, { key }, { index }, endPath) {
       if (index == null || index !== endPath?.index) return null
 
-      const newChild = ParagraphHandler.insert(
-        state,
-        { type: 'paragraph', value: { type: 'text', value: '' } },
-        key,
-      )
-
+      const newChild = ParagraphHandler.createEmpty(state, key)
       ParagraphHandler.selectStart(state, state.getEntry(newChild))
 
       state.update(key, (children) => [
@@ -297,6 +294,13 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
       type,
       parent,
       createValue: (key) => TextHandler.insert(state, child, key),
+    })
+  },
+  createEmpty(state, parent) {
+    return state.insert({
+      type: 'paragraph',
+      parent,
+      createValue: (key) => TextHandler.createEmpty(state, key),
     })
   },
   read(state, key) {
@@ -363,6 +367,9 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
 const TextHandler: NodeHandler<'text'> = {
   insert(state, { value, type }, parent) {
     return state.insert({ type, parent, createValue: () => value })
+  },
+  createEmpty(state, parent) {
+    return state.insert({ type: 'text', parent, createValue: () => '' })
   },
   read(state, key) {
     const { type, value } = state.getEntry(key)
@@ -480,6 +487,7 @@ interface NodeHandler<T extends NodeType = NodeType> {
     node: ExternalTypedValue<T>,
     parent: ParentKey,
   ): Key<T>
+  createEmpty(state: WritableState, parent: ParentKey): Key<T>
   read(state: ReadonlyState, key: Key<T>): ExternalTypedValue<T>
   render(state: ReadonlyState, node: Entry<T>): ReactNode
   select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void

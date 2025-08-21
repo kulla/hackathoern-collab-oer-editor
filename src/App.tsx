@@ -856,11 +856,16 @@ class WritableState extends ReadonlyState {
 
   update<T extends NodeType>(
     key: Key<T>,
-    updateValue: (e: EntryValue<T>) => EntryValue<T>,
-  ) {
-    const entry = this.getEntry(key)
+    updateFn: EntryValue<T> | ((e: EntryValue<T>) => EntryValue<T>),
+  ): Entry<T> {
+    const { type, parent, value } = this.getEntry(key)
+    const newValue = typeof updateFn === 'function' ? updateFn(value) : updateFn
+    const newEntry = { type, key, parent, value: newValue }
 
-    this.set(key, { ...entry, value: updateValue(entry.value) })
+    this.set(key, newEntry)
+    this._updateCount += 1
+
+    return newEntry
   }
 
   setCursor(cursor: Cursor | null) {

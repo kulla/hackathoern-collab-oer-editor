@@ -29,8 +29,6 @@ export default function App() {
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
-      if (event.shiftKey || event.key.startsWith('Arrow')) return
-
       const { state } = manager
       const { cursor } = state
       if (cursor == null) return

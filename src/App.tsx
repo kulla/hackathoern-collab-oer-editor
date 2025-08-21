@@ -126,7 +126,7 @@ export default function App() {
     }
 
     selection.addRange(range)
-  }, [manager, manager.getUpdateCount()])
+  }, [manager, manager.getState().getUpdateCount()])
 
   return (
     <main className="prose p-10">
@@ -695,7 +695,10 @@ type IndexTypeOf<V extends ExternalValue> = V extends string | Array<unknown>
 
 function useStateManager(initialContent: ExternalTypedValue) {
   const manager = useRef(new StateManager(initialContent)).current
-  const lastReturn = useRef({ manager, updateCount: manager.getUpdateCount() })
+  const lastReturn = useRef({
+    manager,
+    updateCount: manager.getState().getUpdateCount(),
+  })
 
   return useSyncExternalStore(
     (listener) => {
@@ -704,11 +707,16 @@ function useStateManager(initialContent: ExternalTypedValue) {
       return () => manager.removeUpdateListener(listener)
     },
     () => {
-      if (lastReturn.current.updateCount === manager.getUpdateCount()) {
+      if (
+        lastReturn.current.updateCount === manager.getState().getUpdateCount()
+      ) {
         return lastReturn.current
       }
 
-      lastReturn.current = { manager, updateCount: manager.getUpdateCount() }
+      lastReturn.current = {
+        manager,
+        updateCount: manager.getState().getUpdateCount(),
+      }
 
       return lastReturn.current
     },
@@ -720,7 +728,6 @@ class StateManager<T extends NodeType = NodeType> {
   private readonly rootKey: Key<T>
   private updateListeners: (() => void)[] = []
   private updateCallDepth = 0
-  private updateCount = 0
 
   constructor(initialContent: ExternalTypedValue<T>) {
     this.rootKey = getHandler(initialContent.type).insert(
@@ -744,16 +751,10 @@ class StateManager<T extends NodeType = NodeType> {
     this.updateCallDepth -= 1
 
     if (this.updateCallDepth === 0) {
-      this.updateCount += 1
-
       for (const listener of this.updateListeners) {
         listener()
       }
     }
-  }
-
-  getUpdateCount() {
-    return this.updateCount
   }
 
   read(): ExternalTypedValue<T> {
@@ -775,6 +776,7 @@ class StateManager<T extends NodeType = NodeType> {
 class ReadonlyState {
   protected entries = new Map<Key, Entry>()
   protected cursor: Cursor | null = null
+  protected updateCount = 0
 
   getEntry<T extends NodeType>(key: Key<T>): Entry<T> {
     const entry = this.entries.get(key) as Entry<T> | undefined
@@ -790,6 +792,10 @@ class ReadonlyState {
 
   getCursor(): Cursor | null {
     return this.cursor
+  }
+
+  getUpdateCount() {
+    return this.updateCount
   }
 }
 
@@ -819,6 +825,7 @@ class WritableState extends ReadonlyState {
 
   setCursor(cursor: Cursor | null) {
     this.cursor = cursor
+    this.updateCount += 1
   }
 
   setCollapsedCursor(point: Point) {
@@ -827,6 +834,7 @@ class WritableState extends ReadonlyState {
 
   private set<T extends NodeType>(key: Key<T>, entry: Entry<T>) {
     this.entries.set(key, entry as Entry)
+    this.updateCount += 1
   }
 
   private generateKey<T extends NodeType>(type: T): Key<T> {

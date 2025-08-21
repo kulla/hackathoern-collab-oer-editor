@@ -191,14 +191,6 @@ const ContentHandler: NodeHandler<'content'> = {
     if (lastChildKey == null) return
     ParagraphHandler.selectStart(state, state.getEntry(lastChildKey))
   },
-  _legacy_splitAt() {
-    // Investigate if splitting content is needed
-    return null
-  },
-  _legacy_merge() {
-    // Investigate if merging content is needed
-    return null
-  },
   split() {
     throw new Error('not implemented yet')
   },
@@ -233,29 +225,19 @@ const ContentHandler: NodeHandler<'content'> = {
 
       const left =
         startNext != null
-          ? ParagraphHandler._legacy_splitAt(
-              ParagraphHandler.read(state, startNext.entry.key),
-              startNext,
-            )?.[0]
+          ? ParagraphHandler.split(state, startNext.entry, startNext)?.[0]
           : null
       const right =
         endNext != null
-          ? ParagraphHandler._legacy_splitAt(
-              ParagraphHandler.read(state, endNext.entry.key),
-              endNext,
-            )?.[1]
+          ? ParagraphHandler.split(state, endNext.entry, endNext)?.[1]
           : null
 
-      const merge =
-        left && right ? ParagraphHandler._legacy_merge(left, right) : null
-
-      const mergeKey =
-        merge != null ? ParagraphHandler.insert(state, merge, key).key : null
+      if (left && right) ParagraphHandler.merge(state, left, right)
 
       state.update(key, (children) => {
         const newChildren = [
           ...children.slice(0, start),
-          ...(mergeKey != null ? [mergeKey] : []),
+          ...(left != null ? [left.key] : []),
           ...children.slice(end + 1),
         ]
 
@@ -362,25 +344,6 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
   selectStart(state, { value }) {
     TextHandler.selectStart(state, state.getEntry(value))
   },
-  _legacy_splitAt({ value }, { next }) {
-    if (next == null) return null
-
-    const split = getHandler(value.type)._legacy_splitAt(value, next)
-
-    return split != null
-      ? [
-          { type: 'paragraph', value: split[0] },
-          { type: 'paragraph', value: split[1] },
-        ]
-      : null
-  },
-  _legacy_merge(left, right) {
-    const value = TextHandler._legacy_merge(left.value, right.value)
-
-    if (value == null) return null
-
-    return { type: 'paragraph', value }
-  },
   split(state, entry, { next }, newParentKey) {
     const { parent, value } = entry
     if (next == null) return null
@@ -466,17 +429,6 @@ const TextHandler: NodeHandler<'text'> = {
   },
   selectStart(state, { key }) {
     state.setCollapsedCursor({ kind: 'character', key, index: 0 })
-  },
-  _legacy_splitAt({ value }, { index }) {
-    if (index == null) return null
-
-    return [
-      { type: 'text', value: value.slice(0, index) },
-      { type: 'text', value: value.slice(index) },
-    ]
-  },
-  _legacy_merge(left, right) {
-    return { type: 'text', value: left.value + right.value }
   },
   merge(state, { key }, { value }) {
     state.update(key, (prev) => prev + value)
@@ -588,14 +540,6 @@ interface NodeHandler<T extends NodeType = NodeType> {
   render(state: ReadonlyState, node: Entry<T>): ReactNode
   select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void
   selectStart(state: WritableState, node: Entry<T>): void
-  _legacy_splitAt(
-    node: ExternalTypedValue<T>,
-    index: Path<'index', T>,
-  ): [ExternalTypedValue<T>, ExternalTypedValue<T>] | null
-  _legacy_merge(
-    left: ExternalTypedValue<T>,
-    right: ExternalTypedValue<T>,
-  ): ExternalTypedValue<T> | null
   split(
     state: WritableState,
     node: Entry<T>,

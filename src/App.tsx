@@ -351,7 +351,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
 
     if (entry.parent === null) return current
 
-    return getHandler(parseType(entry.parent)).getPathToRoot(
+    return getHandler(entry.parent).getPathToRoot(
       state,
       { kind: 'node', key: entry.parent },
       current,
@@ -410,7 +410,7 @@ const TextHandler: NodeHandler<'text'> = {
 
     if (entry.parent === null) return currentPath
 
-    return getHandler(parseType(entry.parent)).getPathToRoot(
+    return getHandler(entry.parent).getPathToRoot(
       state,
       { kind: 'node', key: entry.parent },
       currentPath,
@@ -470,8 +470,8 @@ const handlers: { [T in NodeType]: NodeHandler<T> } = {
   text: TextHandler,
 }
 
-function getHandler<T extends NodeType>(type: T): NodeHandler<T> {
-  return handlers[type]
+function getHandler<T extends NodeType>(type: T | Key<T>): NodeHandler<T> {
+  return handlers[isType(type) ? type : parseType(type)]
 }
 
 interface NodeHandler<T extends NodeType = NodeType> {
@@ -680,7 +680,7 @@ class StateManager<T extends NodeType = NodeType> {
   }
 
   read(): ExternalTypedValue<T> {
-    return getHandler(parseType(this.rootKey)).read(this._state, this.rootKey)
+    return getHandler(this.rootKey).read(this._state, this.rootKey)
   }
 
   get state(): ReadonlyState {
@@ -713,11 +713,8 @@ class StateManager<T extends NodeType = NodeType> {
       }
 
       const { start, end } = state.cursor
-      let startPath = getHandler(parseType(start.key)).getPathToRoot(
-        state,
-        start,
-      )
-      let endPath = getHandler(parseType(end.key)).getPathToRoot(state, end)
+      let startPath = getHandler(start.key).getPathToRoot(state, start)
+      let endPath = getHandler(end.key).getPathToRoot(state, end)
       const targetNodeStack: Path<'entry'>[] = []
 
       while (startPath.entry.key === endPath.entry.key) {

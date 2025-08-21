@@ -305,6 +305,20 @@ const ContentHandler: NodeHandler<'content'> = {
 
       return { success: true }
     },
+    deleteBackward(state, { key, value }, { index }, endPath) {
+      if (index == null || index !== endPath?.index) return null
+      if (value.length <= 1 || index <= 0) return null
+
+      const currentChild = state.getEntry(value[index])
+      const previousChild = state.getEntry(value[index - 1])
+
+      ParagraphHandler.selectEnd(state, previousChild)
+      ParagraphHandler.merge(state, previousChild, currentChild)
+
+      state.update(key, (children) => children.filter((_, i) => i !== index))
+
+      return { success: true }
+    },
   },
 }
 

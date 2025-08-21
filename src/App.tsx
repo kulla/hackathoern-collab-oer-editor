@@ -29,35 +29,14 @@ export default function App() {
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
-      const { state } = manager
-      const { cursor } = state
-      if (cursor == null) return
-
-      let { targetNodeStack, start, end } = getTargetNodeStack(state, cursor)
-
-      let targetNode = targetNodeStack.pop()?.entry ?? start.entry
-
-      while (true) {
-        const isEventHandled = getHandler(targetNode.type).onKeyDown?.(
-          manager,
-          targetNode,
-          event,
-          start,
-          end,
-        )
-
-        if (isEventHandled) {
-          event.preventDefault()
-          return
-        }
-
-        const nextTargetPath = targetNodeStack.pop()
-
-        if (nextTargetPath == null) break
-
-        start = nextTargetPath
-        end = nextTargetPath
-        targetNode = nextTargetPath.entry
+      if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+        manager.dispatchCommand(Command.InsertText, event.key)
+      } else if (event.key === 'Enter') {
+        manager.dispatchCommand(Command.InsertNewElement)
+      } else if (event.key === 'Backspace') {
+        manager.dispatchCommand(Command.DeleteBackward)
+      } else if (event.key === 'Delete') {
+        manager.dispatchCommand(Command.DeleteForward)
       }
 
       if (
@@ -200,96 +179,6 @@ const ContentHandler: NodeHandler<'content'> = {
       </div>
     )
   },
-  onKeyDown(manager, node, event, startPath, endPath) {
-    const { index: startIndex, next: startNext } = startPath
-    const { index: endIndex, next: endNext } = endPath
-
-    const start = startIndex ?? 0
-    const end = endIndex ?? node.value.length
-
-    if (event.key === 'Delete' || event.key === 'Backspace') {
-      manager.update((state) => {
-        state.update(node.key, (children) => {
-          const left =
-            startNext != null
-              ? ParagraphHandler.splitAt(
-                  ParagraphHandler.read(state, startNext.entry.key),
-                  startNext,
-                )?.[0]
-              : null
-          const right =
-            endNext != null
-              ? ParagraphHandler.splitAt(
-                  ParagraphHandler.read(state, endNext.entry.key),
-                  endNext,
-                )?.[1]
-              : null
-
-          const merge =
-            left && right ? ParagraphHandler.merge(left, right) : null
-
-          const mergeKey =
-            merge != null
-              ? ParagraphHandler.insert(state, merge, node.key)
-              : null
-
-          const newChildren = [
-            ...children.slice(0, start),
-            ...(mergeKey != null ? [mergeKey] : []),
-            ...children.slice(end + 1),
-          ]
-
-          if (newChildren.length > 0) {
-            const newEntry = state.getEntry(newChildren[start])
-
-            if (startNext != null) {
-              ParagraphHandler.select(state, newEntry, startNext)
-            } else {
-              ParagraphHandler.selectStart(state, newEntry)
-            }
-
-            return newChildren
-          }
-
-          const newChild = ParagraphHandler.insert(
-            state,
-            { type: 'paragraph', value: { type: 'text', value: '' } },
-            node.key,
-          )
-
-          ParagraphHandler.selectStart(state, state.getEntry(newChild))
-
-          return [newChild]
-        })
-      })
-
-      return true
-    }
-
-    if (event.key === 'Enter') {
-      manager.update((state) => {
-        const newChild = ParagraphHandler.insert(
-          state,
-          { type: 'paragraph', value: { type: 'text', value: '' } },
-          node.key,
-        )
-
-        ParagraphHandler.selectStart(state, state.getEntry(newChild))
-
-        state.update(node.key, (children) => {
-          return [
-            ...children.slice(0, end + 1),
-            newChild,
-            ...children.slice(end + 1),
-          ]
-        })
-      })
-
-      return true
-    }
-
-    return false
-  },
   selectStart(state, { value }) {
     const firstChild = state.getEntry(value[0])
     ParagraphHandler.selectStart(state, firstChild)
@@ -319,6 +208,86 @@ const ContentHandler: NodeHandler<'content'> = {
 
     // TODO: Handle case where entry.parent is null
     return current
+  },
+  onCommand: {
+    deleteRange(state, { key, value }, startPath, endPath) {
+      const { index: startIndex, next: startNext } = startPath
+      const { index: endIndex, next: endNext } = endPath
+      const [start, end] = [startIndex ?? 0, endIndex ?? value.length]
+
+      if (start === end) return null
+
+      const left =
+        startNext != null
+          ? ParagraphHandler.splitAt(
+              ParagraphHandler.read(state, startNext.entry.key),
+              startNext,
+            )?.[0]
+          : null
+      const right =
+        endNext != null
+          ? ParagraphHandler.splitAt(
+              ParagraphHandler.read(state, endNext.entry.key),
+              endNext,
+            )?.[1]
+          : null
+
+      const merge = left && right ? ParagraphHandler.merge(left, right) : null
+
+      const mergeKey =
+        merge != null ? ParagraphHandler.insert(state, merge, key) : null
+
+      state.update(key, (children) => {
+        const newChildren = [
+          ...children.slice(0, start),
+          ...(mergeKey != null ? [mergeKey] : []),
+          ...children.slice(end + 1),
+        ]
+
+        if (newChildren.length > 0) {
+          const newEntry = state.getEntry(newChildren[start])
+
+          if (startNext != null) {
+            ParagraphHandler.select(state, newEntry, startNext)
+          } else {
+            ParagraphHandler.selectStart(state, newEntry)
+          }
+
+          return newChildren
+        }
+
+        const newChild = ParagraphHandler.insert(
+          state,
+          { type: 'paragraph', value: { type: 'text', value: '' } },
+          key,
+        )
+
+        ParagraphHandler.selectStart(state, state.getEntry(newChild))
+
+        return [newChild]
+      })
+
+      return { success: true }
+    },
+    insertNewElement(state, { key }, { index }, endPath) {
+      if (index == null || index !== endPath?.index) return null
+
+      const newChild = ParagraphHandler.insert(
+        state,
+        { type: 'paragraph', value: { type: 'text', value: '' } },
+        key,
+      )
+
+      ParagraphHandler.selectStart(state, state.getEntry(newChild))
+
+      state.update(key, (children) => [
+        ...children.slice(0, index + 1),
+        newChild,
+        ...children.slice(index + 1),
+      ])
+
+      return { success: true }
+    },
   },
 }
 
@@ -388,6 +357,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
       current,
     )
   },
+  onCommand: {},
 }
 
 const TextHandler: NodeHandler<'text'> = {
@@ -412,71 +382,6 @@ const TextHandler: NodeHandler<'text'> = {
   },
   selectStart(state, { key }) {
     state.setCollapsedCursor({ kind: 'character', key, index: 0 })
-  },
-  onKeyDown(manager, node, event, startPath, endPath) {
-    const start = startPath?.index ?? 0
-    const end = endPath?.index ?? node.value.length
-
-    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
-      manager.update((state) => {
-        state.update(
-          node.key,
-          (prev) => prev.slice(0, start) + event.key + prev.slice(end),
-        )
-        state.setCollapsedCursor({
-          kind: 'character',
-          key: node.key,
-          index: start + 1,
-        })
-      })
-
-      return true
-    }
-
-    if (
-      (event.key === 'Delete' || event.key === 'Backspace') &&
-      start !== end
-    ) {
-      manager.update((state) => {
-        state.update(node.key, (prev) => prev.slice(0, start) + prev.slice(end))
-        state.setCollapsedCursor({
-          kind: 'character',
-          key: node.key,
-          index: start,
-        })
-      })
-
-      return true
-    }
-
-    if (event.key === 'Backspace' && start > 0) {
-      manager.update((state) => {
-        state.update(
-          node.key,
-          (prev) => prev.slice(0, start - 1) + prev.slice(start),
-        )
-        state.setCollapsedCursor({
-          kind: 'character',
-          key: node.key,
-          index: start - 1,
-        })
-      })
-
-      return true
-    }
-
-    if (event.key === 'Delete' && start < node.value.length) {
-      manager.update((state) => {
-        state.update(
-          node.key,
-          (prev) => prev.slice(0, start) + prev.slice(start + 1),
-        )
-      })
-
-      return true
-    }
-
-    return false
   },
   splitAt({ value }, { index }) {
     if (index == null) return null
@@ -511,6 +416,52 @@ const TextHandler: NodeHandler<'text'> = {
       currentPath,
     )
   },
+  onCommand: {
+    insertText(state, { key }, { index }, endPath, text) {
+      if (index == null || index !== endPath?.index) return null
+
+      state.update(
+        key,
+        (prev) => prev.slice(0, index) + text + prev.slice(index),
+      )
+      state.setCollapsedCursor({
+        kind: 'character',
+        key,
+        index: index + text.length,
+      })
+
+      return { success: true }
+    },
+    deleteRange(state, { key, value }, startPath, endPath) {
+      const start = startPath?.index ?? 0
+      const end = endPath?.index ?? value.length
+
+      if (start === end) return null
+
+      state.update(key, (prev) => prev.slice(0, start) + prev.slice(end))
+      state.setCollapsedCursor({ kind: 'character', key, index: start })
+
+      return { success: true }
+    },
+    deleteForward(state, { key, value }, { index }, endPath) {
+      if (index == null || index !== endPath?.index) return null
+      if (index >= value.length) return null
+
+      state.update(key, (prev) => prev.slice(0, index) + prev.slice(index + 1))
+      state.setCollapsedCursor({ kind: 'character', key: key, index })
+
+      return { success: true }
+    },
+    deleteBackward(state, { key }, { index }, endPath) {
+      if (index == null || index !== endPath?.index) return null
+      if (index <= 0) return null
+
+      state.update(key, (prev) => prev.slice(0, index - 1) + prev.slice(index))
+      state.setCollapsedCursor({ kind: 'character', key, index: index - 1 })
+
+      return { success: true }
+    },
+  },
 }
 
 const handlers: { [T in NodeType]: NodeHandler<T> } = {
@@ -531,13 +482,6 @@ interface NodeHandler<T extends NodeType = NodeType> {
   ): Key<T>
   read(state: ReadonlyState, key: Key<T>): ExternalTypedValue<T>
   render(state: ReadonlyState, node: Entry<T>): ReactNode
-  onKeyDown?(
-    manager: StateManager,
-    node: Entry<T>,
-    event: KeyboardEvent,
-    start: Path<'entry', T>,
-    end: Path<'entry', T>,
-  ): boolean
   select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void
   selectStart(state: WritableState, node: Entry<T>): void
   splitAt(
@@ -553,6 +497,15 @@ interface NodeHandler<T extends NodeType = NodeType> {
     at: Point<T>,
     next?: Path<'entry', ChildType<T>>,
   ): Path<'entry'>
+  onCommand: {
+    [C in Command]?: (
+      state: WritableState,
+      node: Entry<T>,
+      start: Path<'entry', T>,
+      end: Path<'entry', T>,
+      ...payload: OperationPayload<C>
+    ) => { success: boolean } | null
+  }
 }
 
 // Selection
@@ -618,6 +571,10 @@ function getTargetNodeStack(
   return { targetNodeStack, start, end }
 }
 
+function isCollapsed({ start, end }: Cursor): boolean {
+  return isEqual(start, end)
+}
+
 // TODO: Update to "caret" or "range"
 interface Cursor {
   start: Point
@@ -681,6 +638,20 @@ type IndexTypeOf<V extends ExternalValue> = V extends string | Array<unknown>
       ? keyof V
       : never
 
+// Operations for the editor structure
+
+enum Command {
+  InsertText = 'insertText',
+  InsertNewElement = 'insertNewElement',
+  DeleteRange = 'deleteRange',
+  DeleteForward = 'deleteForward',
+  DeleteBackward = 'deleteBackward',
+}
+
+type OperationPayload<O extends Command> = O extends Command.InsertText
+  ? [string]
+  : []
+
 // State manager
 
 function useStateManager(initialContent: ExternalTypedValue) {
@@ -727,9 +698,9 @@ class StateManager<T extends NodeType = NodeType> {
     this.updateListeners = this.updateListeners.filter((l) => l !== listener)
   }
 
-  update(updateFn: (state: WritableState) => void): void {
+  update<R>(updateFn: (state: WritableState) => R): R {
     this.updateCallDepth += 1
-    updateFn(this._state)
+    const result = updateFn(this._state)
     this.updateCallDepth -= 1
 
     if (this.updateCallDepth === 0) {
@@ -737,6 +708,7 @@ class StateManager<T extends NodeType = NodeType> {
         listener()
       }
     }
+    return result
   }
 
   read(): ExternalTypedValue<T> {
@@ -750,6 +722,61 @@ class StateManager<T extends NodeType = NodeType> {
   render(): ReactNode {
     const rootEntry = this._state.getEntry(this.rootKey)
     return getHandler(rootEntry.type).render(this._state, rootEntry)
+  }
+
+  dispatchCommand<C extends Command>(
+    command: C,
+    ...payload: OperationPayload<C>
+  ): boolean {
+    return this.update((state) => {
+      if (state.cursor == null) return true
+
+      if (command !== Command.DeleteRange && !isCollapsed(state.cursor)) {
+        const result = this.dispatchCommand(Command.DeleteRange)
+
+        if (!result) return false
+        if (
+          command === Command.DeleteBackward ||
+          command === Command.DeleteForward
+        ) {
+          // If we delete a range, we don't need to handle backward or forward deletion
+          return true
+        }
+      }
+
+      let { targetNodeStack, start, end } = getTargetNodeStack(
+        state,
+        state.cursor,
+      )
+
+      let targetNode = targetNodeStack.pop()?.entry ?? start.entry
+
+      while (true) {
+        const commandHandler = getHandler(targetNode.type).onCommand[command]
+
+        if (commandHandler != null) {
+          const result = commandHandler(
+            state,
+            targetNode,
+            start,
+            end,
+            ...payload,
+          )
+
+          if (result?.success) return true
+        }
+
+        const nextTargetPath = targetNodeStack.pop()
+
+        if (nextTargetPath == null) break
+
+        start = nextTargetPath
+        end = nextTargetPath
+        targetNode = nextTargetPath.entry
+      }
+
+      return false
+    })
   }
 }
 
@@ -825,6 +852,7 @@ class WritableState extends ReadonlyState {
     return `${this.lastKey}:${type}`
   }
 }
+
 // Description for the internal structure of the editor
 
 type Entry<T extends NodeType = NodeType> = { [S in T]: EntryOfType<S> }[T]

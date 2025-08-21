@@ -350,7 +350,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
 
     const child = state.getEntry(value)
 
-    const newEntry = state.insert<'paragraph'>({
+    const newEntry = state.insert({
       type: 'paragraph',
       parent: newParentKey ?? parent,
       createValue: (newParent) => {

@@ -187,6 +187,11 @@ const ContentHandler: NodeHandler<'content'> = {
     )
   },
   selectStart(state, { value }) {
+    const firstChildKey = value[0]
+    if (firstChildKey == null) return
+    ParagraphHandler.selectStart(state, state.getEntry(firstChildKey))
+  },
+  selectEnd(state, { value }) {
     const lastChildKey = value[value.length - 1]
     if (lastChildKey == null) return
     ParagraphHandler.selectStart(state, state.getEntry(lastChildKey))
@@ -305,7 +310,7 @@ const ContentHandler: NodeHandler<'content'> = {
       const currentChild = state.getEntry(value[index])
       const previousChild = state.getEntry(value[index - 1])
 
-      ParagraphHandler.selectStart(state, previousChild)
+      ParagraphHandler.selectEnd(state, previousChild)
       ParagraphHandler.merge(state, previousChild, currentChild)
 
       state.update(key, (children) => children.filter((_, i) => i !== index))
@@ -343,6 +348,9 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
   },
   selectStart(state, { value }) {
     TextHandler.selectStart(state, state.getEntry(value))
+  },
+  selectEnd(state, { value }) {
+    TextHandler.selectEnd(state, state.getEntry(value))
   },
   split(state, entry, { next }, newParentKey) {
     const { parent, value } = entry
@@ -429,6 +437,9 @@ const TextHandler: NodeHandler<'text'> = {
   },
   selectStart(state, { key }) {
     state.setCollapsedCursor({ kind: 'character', key, index: 0 })
+  },
+  selectEnd(state, { key, value }) {
+    state.setCollapsedCursor({ kind: 'character', key, index: value.length })
   },
   merge(state, { key }, { value }) {
     state.update(key, (prev) => prev + value)
@@ -540,6 +551,7 @@ interface NodeHandler<T extends NodeType = NodeType> {
   render(state: ReadonlyState, node: Entry<T>): ReactNode
   select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void
   selectStart(state: WritableState, node: Entry<T>): void
+  selectEnd(state: WritableState, node: Entry<T>): void
   split(
     state: WritableState,
     node: Entry<T>,

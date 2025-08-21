@@ -279,10 +279,18 @@ const ContentHandler: NodeHandler<'content'> = {
 
       return { success: true }
     },
-    insertNewElement(state, { key }, { index }, endPath) {
+    insertNewElement(state, { key }, { index, next }, endPath) {
       if (index == null || index !== endPath?.index) return null
+      const newChild = (() => {
+        if (next != null) {
+          const split = ParagraphHandler.split(state, next.entry, next)
 
-      const newChild = ParagraphHandler.createEmpty(state, key)
+          if (split != null) return split[1]
+        }
+
+        return ParagraphHandler.createEmpty(state, key)
+      })()
+
       ParagraphHandler.selectEnd(state, newChild)
 
       state.update(key, (children) => [

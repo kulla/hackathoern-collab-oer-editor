@@ -350,7 +350,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
 
     const child = state.getEntry(value)
 
-    const newEntry = state.insert({
+    const newEntry = state.insert<'paragraph'>({
       type: 'paragraph',
       parent: newParentKey ?? parent,
       createValue: (newParent) => {
@@ -361,7 +361,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
           newParent,
         )
 
-        if (split == null) return undefined
+        if (split == null) return null
 
         return split[1].key
       },
@@ -847,17 +847,17 @@ class WritableState extends ReadonlyState {
 
   insert<T extends NodeType>(arg: UnstoredEntry<T, EntryValue<T>>): Entry<T>
   insert<T extends NodeType>(
-    arg: UnstoredEntry<T, EntryValue<T> | undefined>,
-  ): Entry<T> | undefined
+    arg: UnstoredEntry<T, EntryValue<T> | null>,
+  ): Entry<T> | null
   insert<T extends NodeType>({
     type,
     parent,
     createValue,
-  }: UnstoredEntry<T, EntryValue<T> | undefined>): Entry<T> | undefined {
+  }: UnstoredEntry<T, EntryValue<T> | null>): Entry<T> | null {
     const key = this.generateKey(type)
     const value = createValue(key)
 
-    if (value == null) return undefined
+    if (value == null) return null
 
     const entry = { type, key, parent, value }
 
@@ -911,10 +911,7 @@ interface EntryOfType<T extends NodeType = NodeType> {
   parent: ParentKey
   value: EntryValue<T>
 }
-type UnstoredEntry<
-  T extends NodeType,
-  R extends EntryValue<T> | undefined,
-> = Omit<Entry<T>, 'key' | 'value'> & {
+type UnstoredEntry<T extends NodeType, R> = Omit<Entry<T>, 'key' | 'value'> & {
   createValue: (key: Key<T>) => R
 }
 

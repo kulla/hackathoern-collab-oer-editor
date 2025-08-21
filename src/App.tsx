@@ -842,10 +842,6 @@ class ReadonlyState {
   }
 }
 
-type InsertArg<T extends NodeType, R> = Omit<Entry<T>, 'key' | 'value'> & {
-  createValue: (key: Key<T>) => EntryValue<T> | R
-}
-
 class WritableState extends ReadonlyState {
   private lastKey = -1
 
@@ -902,6 +898,10 @@ class WritableState extends ReadonlyState {
 
     return `${this.lastKey}:${type}`
   }
+}
+
+type InsertArg<T extends NodeType, R> = Omit<Entry<T>, 'key' | 'value'> & {
+  createValue: (key: Key<T>) => EntryValue<T> | R
 }
 
 // Description for the internal structure of the editor

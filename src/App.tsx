@@ -199,6 +199,9 @@ const ContentHandler: NodeHandler<'content'> = {
     // Investigate if merging content is needed
     return null
   },
+  merge() {
+    throw new Error('not implemented yet')
+  },
   select() {
     throw new Error('not implemented yet')
   },
@@ -287,6 +290,21 @@ const ContentHandler: NodeHandler<'content'> = {
 
       return { success: true }
     },
+    deleteForward(state, { key, value }, { index }, endPath) {
+      if (index == null || index !== endPath?.index) return null
+      if (value.length <= 1 || index >= value.length) return null
+
+      const currentChild = state.getEntry(value[index])
+      const nextChild = state.getEntry(value[index + 1])
+
+      ParagraphHandler.merge(state, currentChild, nextChild)
+
+      state.update(key, (children) =>
+        children.filter((_, i) => i !== index + 1),
+      )
+
+      return { success: true }
+    },
   },
 }
 
@@ -337,6 +355,12 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
     if (value == null) return null
 
     return { type: 'paragraph', value }
+  },
+  merge(state, { value }, { value: secondValue }) {
+    const child = state.getEntry(value)
+    const secondChild = state.getEntry(secondValue)
+
+    return TextHandler.merge(state, child, secondChild)
   },
   select(state, { key, value }, { next }) {
     if (next == null) {
@@ -401,6 +425,10 @@ const TextHandler: NodeHandler<'text'> = {
   },
   _legacy_merge(left, right) {
     return { type: 'text', value: left.value + right.value }
+  },
+  merge(state, { key }, { value }) {
+    state.update(key, (prev) => prev + value)
+    return true
   },
   select(state, { key, value }, { index }) {
     state.setCollapsedCursor({
@@ -501,6 +529,7 @@ interface NodeHandler<T extends NodeType = NodeType> {
     left: ExternalTypedValue<T>,
     right: ExternalTypedValue<T>,
   ): ExternalTypedValue<T> | null
+  merge(state: WritableState, node: Entry<T>, withNode: Entry<T>): boolean
   getPathToRoot(
     state: ReadonlyState,
     at: Point<T>,

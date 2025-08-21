@@ -124,7 +124,7 @@ export default function App() {
     }
 
     selection.addRange(range)
-  }, [manager, manager.state.getUpdateCount()])
+  }, [manager, manager.state.updateCount])
 
   return (
     <main className="prose p-10">
@@ -688,10 +688,7 @@ type IndexTypeOf<V extends ExternalValue> = V extends string | Array<unknown>
 
 function useStateManager(initialContent: ExternalTypedValue) {
   const manager = useRef(new StateManager(initialContent)).current
-  const lastReturn = useRef({
-    manager,
-    updateCount: manager.state.getUpdateCount(),
-  })
+  const lastReturn = useRef({ manager, updateCount: manager.state.updateCount })
 
   return useSyncExternalStore(
     (listener) => {
@@ -700,14 +697,11 @@ function useStateManager(initialContent: ExternalTypedValue) {
       return () => manager.removeUpdateListener(listener)
     },
     () => {
-      if (lastReturn.current.updateCount === manager.state.getUpdateCount()) {
+      if (lastReturn.current.updateCount === manager.state.updateCount) {
         return lastReturn.current
       }
 
-      lastReturn.current = {
-        manager,
-        updateCount: manager.state.getUpdateCount(),
-      }
+      lastReturn.current = { manager, updateCount: manager.state.updateCount }
 
       return lastReturn.current
     },
@@ -767,7 +761,7 @@ class StateManager<T extends NodeType = NodeType> {
 class ReadonlyState {
   protected entries = new Map<Key, Entry>()
   protected cursor: Cursor | null = null
-  protected updateCount = 0
+  protected _updateCount = 0
 
   getEntry<T extends NodeType>(key: Key<T>): Entry<T> {
     const entry = this.entries.get(key) as Entry<T> | undefined
@@ -785,8 +779,8 @@ class ReadonlyState {
     return this.cursor
   }
 
-  getUpdateCount() {
-    return this.updateCount
+  get updateCount() {
+    return this._updateCount
   }
 }
 
@@ -816,7 +810,7 @@ class WritableState extends ReadonlyState {
 
   setCursor(cursor: Cursor | null) {
     this.cursor = cursor
-    this.updateCount += 1
+    this._updateCount += 1
   }
 
   setCollapsedCursor(point: Point) {
@@ -825,7 +819,7 @@ class WritableState extends ReadonlyState {
 
   private set<T extends NodeType>(key: Key<T>, entry: Entry<T>) {
     this.entries.set(key, entry as Entry)
-    this.updateCount += 1
+    this._updateCount += 1
   }
 
   private generateKey<T extends NodeType>(type: T): Key<T> {

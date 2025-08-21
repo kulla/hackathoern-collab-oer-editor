@@ -712,39 +712,37 @@ class StateManager<T extends NodeType = NodeType> {
         }
       }
 
-      let start = getHandler(parseType(state.cursor.start.key)).getPathToRoot(
+      const { start, end } = state.cursor
+      let startPath = getHandler(parseType(start.key)).getPathToRoot(
         state,
-        state.cursor.start,
+        start,
       )
-      let end = getHandler(parseType(state.cursor.end.key)).getPathToRoot(
-        state,
-        state.cursor.end,
-      )
+      let endPath = getHandler(parseType(end.key)).getPathToRoot(state, end)
       const targetNodeStack: Path<'entry'>[] = []
 
-      while (start.entry.key === end.entry.key) {
-        targetNodeStack.push(start)
+      while (startPath.entry.key === endPath.entry.key) {
+        targetNodeStack.push(startPath)
 
         if (
-          start.next != null &&
-          end.next != null &&
-          start.index === end.index
+          startPath.next != null &&
+          endPath.next != null &&
+          startPath.index === endPath.index
         ) {
-          start = start.next
-          end = end.next
+          startPath = startPath.next
+          endPath = endPath.next
         } else {
           break
         }
       }
 
-      let targetNode = targetNodeStack.pop()?.entry ?? start.entry
+      let targetNode = targetNodeStack.pop()?.entry ?? startPath.entry
 
       while (true) {
         const result = getHandler(targetNode.type).onCommand[command]?.(
           state,
           targetNode,
-          start,
-          end,
+          startPath,
+          endPath,
           ...payload,
         )
 
@@ -754,8 +752,8 @@ class StateManager<T extends NodeType = NodeType> {
 
         if (nextTargetPath == null) break
 
-        start = nextTargetPath
-        end = nextTargetPath
+        startPath = nextTargetPath
+        endPath = nextTargetPath
         targetNode = nextTargetPath.entry
       }
 

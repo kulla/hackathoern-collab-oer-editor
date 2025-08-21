@@ -31,13 +31,11 @@ export default function App() {
     (event: KeyboardEvent<HTMLElement>) => {
       if (event.shiftKey || event.key.startsWith('Arrow')) return
 
-      const cursor = manager.getState().getCursor()
+      const { state } = manager
+      const cursor = state.getCursor()
       if (cursor == null) return
 
-      let { targetNodeStack, start, end } = getTargetNodeStack(
-        manager.getState(),
-        cursor,
-      )
+      let { targetNodeStack, start, end } = getTargetNodeStack(state, cursor)
 
       let targetNode = targetNodeStack.pop()?.entry ?? start.entry
 
@@ -79,7 +77,7 @@ export default function App() {
   const updateCursorFromSelection = useCallback(() => {
     const selection = document.getSelection()
     const cursor = getCursor(selection)
-    if (!isEqual(cursor, manager.getState().getCursor())) {
+    if (!isEqual(cursor, manager.state.getCursor())) {
       manager.update((state) => state.setCursor(cursor))
     }
   }, [manager])
@@ -94,7 +92,7 @@ export default function App() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Use updateCount to trigger re-render for each state change
   useLayoutEffect(() => {
-    const cursor = manager.getState().getCursor()
+    const cursor = manager.state.getCursor()
     const selection = document.getSelection()
 
     if (selection == null) return
@@ -126,7 +124,7 @@ export default function App() {
     }
 
     selection.addRange(range)
-  }, [manager, manager.getState().getUpdateCount()])
+  }, [manager, manager.state.getUpdateCount()])
 
   return (
     <main className="prose p-10">
@@ -162,15 +160,10 @@ export default function App() {
               wrap_line_length: 70,
             }),
           selection: () =>
-            JSON.stringify(
-              { cursor: manager.getState().getCursor() },
-              undefined,
-              2,
-            ),
+            JSON.stringify({ cursor: manager.state.getCursor() }, undefined, 2),
           state: () => JSON.stringify(manager.read(), undefined, 2),
           entities: () =>
-            manager
-              .getState()
+            manager.state
               .getEntries()
               .map(([key, entry]) => `${key}: ${JSON.stringify(entry)}`)
               .join('\n'),
@@ -697,7 +690,7 @@ function useStateManager(initialContent: ExternalTypedValue) {
   const manager = useRef(new StateManager(initialContent)).current
   const lastReturn = useRef({
     manager,
-    updateCount: manager.getState().getUpdateCount(),
+    updateCount: manager.state.getUpdateCount(),
   })
 
   return useSyncExternalStore(
@@ -707,15 +700,13 @@ function useStateManager(initialContent: ExternalTypedValue) {
       return () => manager.removeUpdateListener(listener)
     },
     () => {
-      if (
-        lastReturn.current.updateCount === manager.getState().getUpdateCount()
-      ) {
+      if (lastReturn.current.updateCount === manager.state.getUpdateCount()) {
         return lastReturn.current
       }
 
       lastReturn.current = {
         manager,
-        updateCount: manager.getState().getUpdateCount(),
+        updateCount: manager.state.getUpdateCount(),
       }
 
       return lastReturn.current
@@ -724,14 +715,14 @@ function useStateManager(initialContent: ExternalTypedValue) {
 }
 
 class StateManager<T extends NodeType = NodeType> {
-  private readonly state = new WritableState()
+  private readonly _state = new WritableState()
   private readonly rootKey: Key<T>
   private updateListeners: (() => void)[] = []
   private updateCallDepth = 0
 
   constructor(initialContent: ExternalTypedValue<T>) {
     this.rootKey = getHandler(initialContent.type).insert(
-      this.state,
+      this._state,
       initialContent,
       null,
     )
@@ -747,7 +738,7 @@ class StateManager<T extends NodeType = NodeType> {
 
   update(updateFn: (state: WritableState) => void): void {
     this.updateCallDepth += 1
-    updateFn(this.state)
+    updateFn(this._state)
     this.updateCallDepth -= 1
 
     if (this.updateCallDepth === 0) {
@@ -758,16 +749,16 @@ class StateManager<T extends NodeType = NodeType> {
   }
 
   read(): ExternalTypedValue<T> {
-    return getHandler(parseType(this.rootKey)).read(this.state, this.rootKey)
+    return getHandler(parseType(this.rootKey)).read(this._state, this.rootKey)
   }
 
-  getState(): ReadonlyState {
-    return this.state
+  get state(): ReadonlyState {
+    return this._state
   }
 
   render(): ReactNode {
-    const rootEntry = this.state.getEntry(this.rootKey)
-    return getHandler(rootEntry.type).render(this.state, rootEntry)
+    const rootEntry = this._state.getEntry(this.rootKey)
+    return getHandler(rootEntry.type).render(this._state, rootEntry)
   }
 }
 

@@ -157,8 +157,8 @@ const ContentHandler: NodeHandler<'content'> = {
       type,
       parent,
       createValue: (key) => {
-        return children.map((child) =>
-          ParagraphHandler.insert(state, child, key),
+        return children.map(
+          (child) => ParagraphHandler.insert(state, child, key).key,
         )
       },
     })
@@ -167,7 +167,7 @@ const ContentHandler: NodeHandler<'content'> = {
     return state.insert({
       type: 'content',
       parent,
-      createValue: (key) => [ParagraphHandler.createEmpty(state, key)],
+      createValue: (key) => [ParagraphHandler.createEmpty(state, key).key],
     })
   },
   read(state, key) {
@@ -198,6 +198,9 @@ const ContentHandler: NodeHandler<'content'> = {
   _legacy_merge() {
     // Investigate if merging content is needed
     return null
+  },
+  split() {
+    throw new Error('not implemented yet')
   },
   merge() {
     throw new Error('not implemented yet')
@@ -247,7 +250,7 @@ const ContentHandler: NodeHandler<'content'> = {
         left && right ? ParagraphHandler._legacy_merge(left, right) : null
 
       const mergeKey =
-        merge != null ? ParagraphHandler.insert(state, merge, key) : null
+        merge != null ? ParagraphHandler.insert(state, merge, key).key : null
 
       state.update(key, (children) => {
         const newChildren = [
@@ -269,9 +272,9 @@ const ContentHandler: NodeHandler<'content'> = {
         }
 
         const newChild = ParagraphHandler.createEmpty(state, key)
-        ParagraphHandler.selectEnd(state, state.getEntry(newChild))
+        ParagraphHandler.selectEnd(state, newChild)
 
-        return [newChild]
+        return [newChild.key]
       })
 
       return { success: true }
@@ -280,11 +283,11 @@ const ContentHandler: NodeHandler<'content'> = {
       if (index == null || index !== endPath?.index) return null
 
       const newChild = ParagraphHandler.createEmpty(state, key)
-      ParagraphHandler.selectEnd(state, state.getEntry(newChild))
+      ParagraphHandler.selectEnd(state, newChild)
 
       state.update(key, (children) => [
         ...children.slice(0, index + 1),
-        newChild,
+        newChild.key,
         ...children.slice(index + 1),
       ])
 
@@ -327,14 +330,14 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
     return state.insert({
       type,
       parent,
-      createValue: (key) => TextHandler.insert(state, child, key),
+      createValue: (key) => TextHandler.insert(state, child, key).key,
     })
   },
   createEmpty(state, parent) {
     return state.insert({
       type: 'paragraph',
       parent,
-      createValue: (key) => TextHandler.createEmpty(state, key),
+      createValue: (key) => TextHandler.createEmpty(state, key).key,
     })
   },
   read(state, key) {
@@ -369,6 +372,23 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
     if (value == null) return null
 
     return { type: 'paragraph', value }
+  },
+  split(state, { parent, key, value }, { next }) {
+    if (next == null) return null
+
+    const child = state.getEntry(value)
+    const split = getHandler(child.type).split(state, child, next)
+
+    if (split == null) return null
+
+    return [
+      state.update(key, split[0].key),
+      state.insert({
+        type: 'paragraph',
+        parent,
+        createValue: () => split[1].key,
+      }),
+    ]
   },
   merge(state, { value }, { value: secondValue }) {
     const child = state.getEntry(value)
@@ -443,6 +463,21 @@ const TextHandler: NodeHandler<'text'> = {
   merge(state, { key }, { value }) {
     state.update(key, (prev) => prev + value)
     return true
+  },
+  split(state, { parent, key, value }, { index }) {
+    if (index == null || index >= value.length) return null
+
+    const leftPart = value.slice(0, index)
+    const rightPart = value.slice(index)
+
+    return [
+      state.update(key, leftPart),
+      state.insert({
+        type: 'text',
+        parent,
+        createValue: () => rightPart,
+      }),
+    ]
   },
   select(state, { key, value }, { index }) {
     state.setCollapsedCursor({
@@ -529,8 +564,8 @@ interface NodeHandler<T extends NodeType = NodeType> {
     state: WritableState,
     node: ExternalTypedValue<T>,
     parent: ParentKey,
-  ): Key<T>
-  createEmpty(state: WritableState, parent: ParentKey): Key<T>
+  ): Entry<T>
+  createEmpty(state: WritableState, parent: ParentKey): Entry<T>
   read(state: ReadonlyState, key: Key<T>): ExternalTypedValue<T>
   render(state: ReadonlyState, node: Entry<T>): ReactNode
   select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void
@@ -543,7 +578,12 @@ interface NodeHandler<T extends NodeType = NodeType> {
     left: ExternalTypedValue<T>,
     right: ExternalTypedValue<T>,
   ): ExternalTypedValue<T> | null
-  merge(state: WritableState, node: Entry<T>, withNode: Entry<T>): boolean
+  split(
+    state: WritableState,
+    node: Entry<T>,
+    at: Path<'index', T>,
+  ): [Entry<T>, Entry<T>] | null
+  merge(state: WritableState, node: Entry<T>, withNode: Entry<T>): true | null
   getPathToRoot(
     state: ReadonlyState,
     at: Point<T>,
@@ -707,7 +747,7 @@ class StateManager<T extends NodeType = NodeType> {
       this._state,
       initialContent,
       null,
-    )
+    ).key
   }
 
   addUpdateListener(listener: () => void): void {
@@ -846,14 +886,14 @@ class WritableState extends ReadonlyState {
     type,
     parent,
     createValue,
-  }: UnstoredEntry<T>): Key<T> {
+  }: UnstoredEntry<T>): Entry<T> {
     const key = this.generateKey(type)
     const entry = { type, key, parent, value: createValue(key) }
 
     this.set(key, entry)
     this._updateCount += 1
 
-    return key
+    return entry
   }
 
   update<T extends NodeType>(

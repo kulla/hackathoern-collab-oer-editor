@@ -186,9 +186,10 @@ const ContentHandler: NodeHandler<'content'> = {
       </div>
     )
   },
-  selectStart(state, { value }) {
-    const firstChild = state.getEntry(value[0])
-    ParagraphHandler.selectStart(state, firstChild)
+  selectEnd(state, { value }) {
+    const lastChildKey = value[value.length - 1]
+    if (lastChildKey == null) return
+    ParagraphHandler.selectEnd(state, state.getEntry(lastChildKey))
   },
   splitAt() {
     // Investigate if splitting content is needed
@@ -257,14 +258,14 @@ const ContentHandler: NodeHandler<'content'> = {
           if (startNext != null) {
             ParagraphHandler.select(state, newEntry, startNext)
           } else {
-            ParagraphHandler.selectStart(state, newEntry)
+            ParagraphHandler.selectEnd(state, newEntry)
           }
 
           return newChildren
         }
 
         const newChild = ParagraphHandler.createEmpty(state, key)
-        ParagraphHandler.selectStart(state, state.getEntry(newChild))
+        ParagraphHandler.selectEnd(state, state.getEntry(newChild))
 
         return [newChild]
       })
@@ -275,7 +276,7 @@ const ContentHandler: NodeHandler<'content'> = {
       if (index == null || index !== endPath?.index) return null
 
       const newChild = ParagraphHandler.createEmpty(state, key)
-      ParagraphHandler.selectStart(state, state.getEntry(newChild))
+      ParagraphHandler.selectEnd(state, state.getEntry(newChild))
 
       state.update(key, (children) => [
         ...children.slice(0, index + 1),
@@ -314,9 +315,8 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
       </p>
     )
   },
-  selectStart(state, { value }) {
-    const textEntry = state.getEntry(value)
-    TextHandler.selectStart(state, textEntry)
+  selectEnd(state, { value }) {
+    TextHandler.selectEnd(state, state.getEntry(value))
   },
   splitAt({ value }, { next }) {
     if (next == null) return null
@@ -387,8 +387,8 @@ const TextHandler: NodeHandler<'text'> = {
       </span>
     )
   },
-  selectStart(state, { key }) {
-    state.setCollapsedCursor({ kind: 'character', key, index: 0 })
+  selectEnd(state, { key, value }) {
+    state.setCollapsedCursor({ kind: 'character', key, index: value.length })
   },
   splitAt({ value }, { index }) {
     if (index == null) return null
@@ -491,7 +491,7 @@ interface NodeHandler<T extends NodeType = NodeType> {
   read(state: ReadonlyState, key: Key<T>): ExternalTypedValue<T>
   render(state: ReadonlyState, node: Entry<T>): ReactNode
   select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void
-  selectStart(state: WritableState, node: Entry<T>): void
+  selectEnd(state: WritableState, node: Entry<T>): void
   splitAt(
     node: ExternalTypedValue<T>,
     index: Path<'index', T>,

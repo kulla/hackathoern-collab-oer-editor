@@ -13,7 +13,7 @@ import './App.css'
 import { invariant, isEqual } from 'es-toolkit'
 import { DebugPanel } from './components/debug-panel'
 
-const initialContent: ExternalTypedValue<'content'> = {
+const initialContent: TypedJSONValue<'content'> = {
   type: 'content',
   value: [
     {
@@ -532,11 +532,11 @@ function getHandler<T extends NodeType>(type: T | Key<T>): NodeHandler<T> {
 interface NodeHandler<T extends NodeType = NodeType> {
   insert(
     state: WritableState,
-    node: ExternalTypedValue<T>,
+    node: TypedJSONValue<T>,
     parent: ParentKey,
   ): Entry<T>
   createEmpty(state: WritableState, parent: ParentKey): Entry<T>
-  read(state: ReadonlyState, key: Key<T>): ExternalTypedValue<T>
+  read(state: ReadonlyState, key: Key<T>): TypedJSONValue<T>
   render(state: ReadonlyState, node: Entry<T>): ReactNode
   select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void
   selectStart(state: WritableState, node: Entry<T>): void
@@ -652,10 +652,10 @@ type ChildType<T extends NodeType> = T extends 'content'
     ? 'text'
     : never
 
-type IndexType<T extends NodeType> = IndexTypeOf<ExternalValue<T>>
-type IndexTypeOf<V extends ExternalValue> = V extends string | Array<unknown>
+type IndexType<T extends NodeType> = IndexTypeOf<JSONValue<T>>
+type IndexTypeOf<V extends JSONValue> = V extends string | Array<unknown>
   ? number
-  : V extends ExternalValue
+  : V extends JSONValue
     ? never
     : V extends object
       ? keyof V
@@ -677,7 +677,7 @@ type OperationPayload<O extends Command> = O extends Command.InsertText
 
 // State manager
 
-function useStateManager(initialContent: ExternalTypedValue) {
+function useStateManager(initialContent: TypedJSONValue) {
   const manager = useRef(new StateManager(initialContent)).current
   const lastReturn = useRef({ manager, updateCount: manager.state.updateCount })
 
@@ -705,7 +705,7 @@ class StateManager<T extends NodeType = NodeType> {
   private updateListeners: (() => void)[] = []
   private updateCallDepth = 0
 
-  constructor(initialContent: ExternalTypedValue<T>) {
+  constructor(initialContent: TypedJSONValue<T>) {
     this.rootKey = getHandler(initialContent.type).insert(
       this._state,
       initialContent,
@@ -734,7 +734,7 @@ class StateManager<T extends NodeType = NodeType> {
     return result
   }
 
-  read(): ExternalTypedValue<T> {
+  read(): TypedJSONValue<T> {
     return getHandler(this.rootKey).read(this._state, this.rootKey)
   }
 
@@ -918,18 +918,18 @@ type UnstoredEntry<
   createValue: (key: Key<T>) => R
 }
 
-type EntryValue<T extends NodeType> = ComputedEntryValue<ExternalValue<T>>
-type ComputedEntryValue<V extends ExternalValue> = V extends ExternalTypedValue
+type EntryValue<T extends NodeType> = ComputedEntryValue<JSONValue<T>>
+type ComputedEntryValue<V extends JSONValue> = V extends TypedJSONValue
   ? Key<V['type']>
   : V extends string | number | boolean
     ? V
     : V extends Array<infer U>
-      ? U extends ExternalTypedValue
+      ? U extends TypedJSONValue
         ? Key<U['type']>[]
         : never
       : V extends object
         ? {
-            [K in keyof V]: V[K] extends ExternalTypedValue
+            [K in keyof V]: V[K] extends TypedJSONValue
               ? Key<V[K]['type']>
               : never
           }
@@ -966,22 +966,21 @@ function parseType<T extends NodeType>(key: Key<T>): T {
 
 // Description of the external JSON for the editor structure
 
-// To-Do: Find a better name than "ExternalValue"
-interface ExternalTypedValue<T extends NodeType = NodeType> {
+interface TypedJSONValue<T extends NodeType = NodeType> {
   type: T
-  value: ExternalValue<T>
+  value: JSONValue<T>
 }
 
-type isParent<T extends NodeType> = ExternalValue<T> extends PrimitiveValue
+type isParent<T extends NodeType> = JSONValue<T> extends PrimitiveValue
   ? false
   : true
 type PrimitiveValue = string | boolean | number
 
-type ExternalValue<T extends NodeType = NodeType> = ExternalValueMap[T]
+type JSONValue<T extends NodeType = NodeType> = JSONValueMap[T]
 
-interface ExternalValueMap {
-  content: ExternalTypedValue<'paragraph'>[]
-  paragraph: ExternalTypedValue<'text'>
+interface JSONValueMap {
+  content: TypedJSONValue<'paragraph'>[]
+  paragraph: TypedJSONValue<'text'>
   text: string
 }
 

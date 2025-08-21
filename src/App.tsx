@@ -32,7 +32,7 @@ export default function App() {
       if (event.shiftKey || event.key.startsWith('Arrow')) return
 
       const { state } = manager
-      const cursor = state.getCursor()
+      const { cursor } = state
       if (cursor == null) return
 
       let { targetNodeStack, start, end } = getTargetNodeStack(state, cursor)
@@ -77,7 +77,7 @@ export default function App() {
   const updateCursorFromSelection = useCallback(() => {
     const selection = document.getSelection()
     const cursor = getCursor(selection)
-    if (!isEqual(cursor, manager.state.getCursor())) {
+    if (!isEqual(cursor, manager.state.cursor)) {
       manager.update((state) => state.setCursor(cursor))
     }
   }, [manager])
@@ -92,7 +92,7 @@ export default function App() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Use updateCount to trigger re-render for each state change
   useLayoutEffect(() => {
-    const cursor = manager.state.getCursor()
+    const { cursor } = manager.state
     const selection = document.getSelection()
 
     if (selection == null) return
@@ -160,7 +160,7 @@ export default function App() {
               wrap_line_length: 70,
             }),
           selection: () =>
-            JSON.stringify({ cursor: manager.state.getCursor() }, undefined, 2),
+            JSON.stringify({ cursor: manager.state.cursor }, undefined, 2),
           state: () => JSON.stringify(manager.read(), undefined, 2),
           entities: () =>
             manager.state
@@ -760,7 +760,7 @@ class StateManager<T extends NodeType = NodeType> {
 
 class ReadonlyState {
   protected entries = new Map<Key, Entry>()
-  protected cursor: Cursor | null = null
+  protected _cursor: Cursor | null = null
   protected _updateCount = 0
 
   getEntry<T extends NodeType>(key: Key<T>): Entry<T> {
@@ -775,8 +775,8 @@ class ReadonlyState {
     return Array.from(this.entries.entries())
   }
 
-  getCursor(): Cursor | null {
-    return this.cursor
+  get cursor(): Cursor | null {
+    return this._cursor
   }
 
   get updateCount() {
@@ -809,7 +809,7 @@ class WritableState extends ReadonlyState {
   }
 
   setCursor(cursor: Cursor | null) {
-    this.cursor = cursor
+    this._cursor = cursor
     this._updateCount += 1
   }
 

@@ -539,38 +539,6 @@ function getPoint(node: Node | null, offset: number | null): Point | null {
     : { kind: 'node', key }
 }
 
-function getTargetNodeStack(
-  state: ReadonlyState,
-  cursor: Cursor,
-): {
-  targetNodeStack: Path<'entry'>[]
-  start: Path<'entry'>
-  end: Path<'entry'>
-} {
-  let start = getHandler(parseType(cursor.start.key)).getPathToRoot(
-    state,
-    cursor.start,
-  )
-  let end = getHandler(parseType(cursor.end.key)).getPathToRoot(
-    state,
-    cursor.end,
-  )
-  const targetNodeStack: Path<'entry'>[] = []
-
-  while (start.entry.key === end.entry.key) {
-    targetNodeStack.push(start)
-
-    if (start.next != null && end.next != null && start.index === end.index) {
-      start = start.next
-      end = end.next
-    } else {
-      break
-    }
-  }
-
-  return { targetNodeStack, start, end }
-}
-
 function isCollapsed({ start, end }: Cursor): boolean {
   return isEqual(start, end)
 }
@@ -744,10 +712,30 @@ class StateManager<T extends NodeType = NodeType> {
         }
       }
 
-      let { targetNodeStack, start, end } = getTargetNodeStack(
+      let start = getHandler(parseType(state.cursor.start.key)).getPathToRoot(
         state,
-        state.cursor,
+        state.cursor.start,
       )
+      let end = getHandler(parseType(state.cursor.end.key)).getPathToRoot(
+        state,
+        state.cursor.end,
+      )
+      const targetNodeStack: Path<'entry'>[] = []
+
+      while (start.entry.key === end.entry.key) {
+        targetNodeStack.push(start)
+
+        if (
+          start.next != null &&
+          end.next != null &&
+          start.index === end.index
+        ) {
+          start = start.next
+          end = end.next
+        } else {
+          break
+        }
+      }
 
       let targetNode = targetNodeStack.pop()?.entry ?? start.entry
 

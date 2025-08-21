@@ -752,19 +752,15 @@ class StateManager<T extends NodeType = NodeType> {
       let targetNode = targetNodeStack.pop()?.entry ?? start.entry
 
       while (true) {
-        const commandHandler = getHandler(targetNode.type).onCommand[command]
+        const result = getHandler(targetNode.type).onCommand[command]?.(
+          state,
+          targetNode,
+          start,
+          end,
+          ...payload,
+        )
 
-        if (commandHandler != null) {
-          const result = commandHandler(
-            state,
-            targetNode,
-            start,
-            end,
-            ...payload,
-          )
-
-          if (result?.success) return true
-        }
+        if (result?.success) return true
 
         const nextTargetPath = targetNodeStack.pop()
 

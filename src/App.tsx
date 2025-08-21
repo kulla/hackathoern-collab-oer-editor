@@ -842,18 +842,20 @@ class ReadonlyState {
   }
 }
 
+type InsertArg<T extends NodeType, R> = Omit<Entry<T>, 'key' | 'value'> & {
+  createValue: (key: Key<T>) => EntryValue<T> | R
+}
+
 class WritableState extends ReadonlyState {
   private lastKey = -1
 
-  insert<T extends NodeType>(arg: UnstoredEntry<T, EntryValue<T>>): Entry<T>
-  insert<T extends NodeType>(
-    arg: UnstoredEntry<T, EntryValue<T> | null>,
-  ): Entry<T> | null
+  insert<T extends NodeType>(arg: InsertArg<T, never>): Entry<T>
+  insert<T extends NodeType>(arg: InsertArg<T, null>): Entry<T> | null
   insert<T extends NodeType>({
     type,
     parent,
     createValue,
-  }: UnstoredEntry<T, EntryValue<T> | null>): Entry<T> | null {
+  }: InsertArg<T, null>): Entry<T> | null {
     const key = this.generateKey(type)
     const value = createValue(key)
 
@@ -910,9 +912,6 @@ interface EntryOfType<T extends NodeType = NodeType> {
   key: Key<T>
   parent: ParentKey
   value: EntryValue<T>
-}
-type UnstoredEntry<T extends NodeType, R> = Omit<Entry<T>, 'key' | 'value'> & {
-  createValue: (key: Key<T>) => R
 }
 
 type EntryValue<T extends NodeType> = ComputedEntryValue<JSONValue<T>>

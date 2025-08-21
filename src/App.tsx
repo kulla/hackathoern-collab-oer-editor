@@ -381,22 +381,32 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
 
     return { type: 'paragraph', value }
   },
-  split(state, { parent, key, value }, { next }) {
+  split(state, entry, { next }, newParentKey) {
+    const { parent, value } = entry
     if (next == null) return null
 
     const child = state.getEntry(value)
-    const split = getHandler(child.type).split(state, child, next)
 
-    if (split == null) return null
+    const newEntry = state.insert<'paragraph'>({
+      type: 'paragraph',
+      parent: newParentKey ?? parent,
+      createValue: (newParent) => {
+        const split = getHandler(child.type).split(
+          state,
+          child,
+          next,
+          newParent,
+        )
 
-    return [
-      state.update(key, split[0].key),
-      state.insert({
-        type: 'paragraph',
-        parent,
-        createValue: () => split[1].key,
-      }),
-    ]
+        if (split == null) return undefined
+
+        return split[1].key
+      },
+    })
+
+    if (newEntry == null) return null
+
+    return [entry, newEntry]
   },
   merge(state, { value }, { value: secondValue }) {
     const child = state.getEntry(value)
@@ -472,7 +482,7 @@ const TextHandler: NodeHandler<'text'> = {
     state.update(key, (prev) => prev + value)
     return true
   },
-  split(state, { parent, key, value }, { index }) {
+  split(state, { parent, key, value }, { index }, newParentKey) {
     if (index == null || index >= value.length) return null
 
     const leftPart = value.slice(0, index)
@@ -482,7 +492,7 @@ const TextHandler: NodeHandler<'text'> = {
       state.update(key, leftPart),
       state.insert({
         type: 'text',
-        parent,
+        parent: newParentKey ?? parent,
         createValue: () => rightPart,
       }),
     ]
@@ -590,6 +600,7 @@ interface NodeHandler<T extends NodeType = NodeType> {
     state: WritableState,
     node: Entry<T>,
     at: Path<'index', T>,
+    parent?: ParentKey,
   ): [Entry<T>, Entry<T>] | null
   merge(state: WritableState, node: Entry<T>, withNode: Entry<T>): true | null
   getPathToRoot(
@@ -890,13 +901,21 @@ class ReadonlyState {
 class WritableState extends ReadonlyState {
   private lastKey = -1
 
+  insert<T extends NodeType>(arg: UnstoredEntry<T, EntryValue<T>>): Entry<T>
+  insert<T extends NodeType>(
+    arg: UnstoredEntry<T, EntryValue<T> | undefined>,
+  ): Entry<T> | undefined
   insert<T extends NodeType>({
     type,
     parent,
     createValue,
-  }: UnstoredEntry<T>): Entry<T> {
+  }: UnstoredEntry<T, EntryValue<T> | undefined>): Entry<T> | undefined {
     const key = this.generateKey(type)
-    const entry = { type, key, parent, value: createValue(key) }
+    const value = createValue(key)
+
+    if (value == null) return undefined
+
+    const entry = { type, key, parent, value }
 
     this.set(key, entry)
     this._updateCount += 1
@@ -948,8 +967,11 @@ interface EntryOfType<T extends NodeType = NodeType> {
   parent: ParentKey
   value: EntryValue<T>
 }
-type UnstoredEntry<T extends NodeType> = Omit<Entry<T>, 'key' | 'value'> & {
-  createValue: (key: Key<T>) => EntryValue<T>
+type UnstoredEntry<
+  T extends NodeType,
+  R extends EntryValue<T> | undefined,
+> = Omit<Entry<T>, 'key' | 'value'> & {
+  createValue: (key: Key<T>) => R
 }
 
 type EntryValue<T extends NodeType> = ComputedEntryValue<ExternalValue<T>>

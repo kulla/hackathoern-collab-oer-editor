@@ -848,8 +848,10 @@ class WritableState extends ReadonlyState {
     createValue,
   }: UnstoredEntry<T>): Key<T> {
     const key = this.generateKey(type)
+    const entry = { type, key, parent, value: createValue(key) }
 
-    this.set(key, { type, key, parent, value: createValue(key) })
+    this.set(key, entry)
+    this._updateCount += 1
 
     return key
   }

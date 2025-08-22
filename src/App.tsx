@@ -12,6 +12,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
 import { invariant, isEqual } from 'es-toolkit'
 import { DebugPanel } from './components/debug-panel'
+import type { NodeType } from './nodes/types'
 
 const initialContent: TypedJSONValue<'content'> = {
   type: 'content',
@@ -985,7 +986,3 @@ interface JSONValueMap {
   paragraph: TypedJSONValue<'text'>
   text: string
 }
-
-// Editor node types
-
-type NodeType = 'content' | 'paragraph' | 'text'

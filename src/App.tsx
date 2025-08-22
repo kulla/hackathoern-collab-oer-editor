@@ -609,7 +609,7 @@ type PathOfType<P extends PathType, T extends NodeType> =
 
 type Parent<P extends PathType, T extends NodeType = NodeType> = {
   kind: 'parent'
-  index: IndexType<T>
+  index: NodeDescription[T]['indexType']
   next: Path<P, ChildType<T>>
 } & Extension<P, T>
 
@@ -637,15 +637,6 @@ type ChildType<T extends NodeType> = T extends 'content'
   : T extends 'paragraph'
     ? 'text'
     : never
-
-type IndexType<T extends NodeType> = IndexTypeOf<JSONValue<T>>
-type IndexTypeOf<V extends JSONValue> = V extends string | Array<unknown>
-  ? number
-  : V extends JSONValue
-    ? never
-    : V extends object
-      ? keyof V
-      : never
 
 // Operations for the editor structure
 

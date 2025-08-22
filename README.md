@@ -37,3 +37,4 @@ bun update
 
 - When a non editable entry is selected => focus it.
 - Move `rootKey` to the state.
+- Add a RootNode

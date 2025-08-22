@@ -874,7 +874,7 @@ type InsertArg<T extends NodeType, R> = Omit<Entry<T>, 'key' | 'value'> & {
 // Description for the internal structure of the editor
 
 type Entry<T extends NodeType = NodeType> = { [S in T]: EntryOf<S> }[T]
-interface EntryOf<T extends NodeType = NodeType> {
+interface EntryOf<T extends NodeType> {
   type: T
   key: Key<T>
   parent: ParentKey

@@ -147,12 +147,12 @@ export default function App() {
 // Handlers for managing editor nodes
 
 const ContentHandler: NodeHandler<'content'> = {
-  insert(state, children, parent) {
+  insert(state, parent, children) {
     return state.insert({
       type: 'content',
       parent,
       createValue: (key) =>
-        children.map((child) => ParagraphHandler.insert(state, child, key).key),
+        children.map((child) => ParagraphHandler.insert(state, key, child).key),
     })
   },
   createEmpty(state, parent) {
@@ -310,11 +310,11 @@ const ContentHandler: NodeHandler<'content'> = {
 }
 
 const ParagraphHandler: NodeHandler<'paragraph'> = {
-  insert(state, { value: child, type }, parent) {
+  insert(state, parent, { value: child, type }) {
     return state.insert({
       type,
       parent,
-      createValue: (key) => TextHandler.insert(state, child, key).key,
+      createValue: (key) => TextHandler.insert(state, key, child).key,
     })
   },
   createEmpty(state, parent) {
@@ -402,7 +402,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
 }
 
 const TextHandler: NodeHandler<'text'> = {
-  insert(state, value, parent) {
+  insert(state, parent, value) {
     return state.insert({ type: 'text', parent, createValue: () => value })
   },
   createEmpty(state, parent) {
@@ -521,7 +521,7 @@ function getHandler<T extends NodeType>(type: T | Key<T>): NodeHandler<T> {
 }
 
 interface NodeHandler<T extends NodeType = NodeType> {
-  insert(state: WritableState, node: JSONValue<T>, parent: ParentKey): Entry<T>
+  insert(state: WritableState, parent: ParentKey, node: JSONValue<T>): Entry<T>
   createEmpty(state: WritableState, parent: ParentKey): Entry<T>
 
   read(state: ReadonlyState, key: Key<T>): JSONValue<T>
@@ -677,7 +677,7 @@ class StateManager<T extends NodeType = NodeType> {
   private updateCallDepth = 0
 
   constructor(type: T, initial: JSONValue<T>) {
-    this.rootKey = getHandler(type).insert(this._state, initial, null).key
+    this.rootKey = getHandler(type).insert(this._state, null, initial).key
   }
 
   addUpdateListener(listener: () => void): void {

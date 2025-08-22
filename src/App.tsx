@@ -547,8 +547,15 @@ interface NodeHandler<T extends NodeType = NodeType> {
     parent: ParentKey,
   ): Entry<T>
   createEmpty(state: WritableState, parent: ParentKey): Entry<T>
+
   read(state: ReadonlyState, key: Key<T>): TypedJSONValue<T>
   render(state: ReadonlyState, node: Entry<T>): ReactNode
+  getPathToRoot(
+    state: ReadonlyState,
+    at: Point<T>,
+    next?: Path<'entry', ChildType<T>>,
+  ): Path<'entry'>
+
   select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void
   selectStart(state: WritableState, node: Entry<T>): void
   selectEnd(state: WritableState, node: Entry<T>): void
@@ -559,11 +566,6 @@ interface NodeHandler<T extends NodeType = NodeType> {
     parent?: ParentKey,
   ): [Entry<T>, Entry<T>] | null
   merge(state: WritableState, node: Entry<T>, withNode: Entry<T>): true | null
-  getPathToRoot(
-    state: ReadonlyState,
-    at: Point<T>,
-    next?: Path<'entry', ChildType<T>>,
-  ): Path<'entry'>
   onCommand: {
     [C in Command]?: (
       state: WritableState,

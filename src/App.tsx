@@ -918,7 +918,7 @@ type JSONValue<T extends NodeType = NodeType> = NodeDescription[T]['jsonValue']
 interface NodeDescription {
   content: ArrayNode<'paragraph'>
   paragraph: WrappedNode<'paragraph', 'text'>
-  text: TextNode
+  text: PrimitiveNode<string>
 }
 
 /*interface ObjectNode<O extends Record<string, NodeType>> {
@@ -942,19 +942,12 @@ interface WrappedNode<T extends NodeType, C extends NodeType> {
   index: WrappedNodeIndex
 }
 
-interface TextNode {
-  entryValue: string
-  jsonValue: string
-  childType: never
-  index: number
-}
-
-/*interface PrimitiveNode<C extends boolean | number | string> {
+interface PrimitiveNode<C extends boolean | number | string> {
   entryValue: C
   jsonValue: C
   childType: never
-  indexType: never
-}*/
+  index: never
+}
 
 const WrappedNodeIndex = Symbol('WrappedNodeIndex')
 type WrappedNodeIndex = typeof WrappedNodeIndex

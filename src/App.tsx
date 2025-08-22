@@ -35,7 +35,7 @@ export default function App() {
       }
 
       if (
-        (event.ctrlKey && ['c', 'v', 'x'].includes(event.key)) ||
+        (event.ctrlKey && ['c', 'v', 'x'].includes(event.key.toLowerCase())) ||
         ['Enter', 'Tab', 'Delete', 'Backspace'].includes(event.key) ||
         (event.key.length === 1 && !event.ctrlKey && !event.metaKey)
       ) {

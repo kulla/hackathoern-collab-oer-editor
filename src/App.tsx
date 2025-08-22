@@ -87,13 +87,13 @@ export default function App() {
 
     const range = document.createRange()
 
-    if (start.kind === 'character') {
+    if (start.kind === 'char') {
       range.setStart(startNode.firstChild ?? startNode, start.index)
     } else {
       range.setStart(startNode, 0)
     }
 
-    if (end.kind === 'character') {
+    if (end.kind === 'char') {
       range.setEnd(endNode.firstChild ?? endNode, end.index)
     } else {
       range.setEnd(endNode, 0)
@@ -436,10 +436,10 @@ const TextHandler: NodeHandler<'text'> = {
     )
   },
   selectStart(state, { key }) {
-    state.setCollapsedCursor({ kind: 'character', key, index: 0 })
+    state.setCollapsedCursor({ kind: 'char', key, index: 0 })
   },
   selectEnd(state, { key, value }) {
-    state.setCollapsedCursor({ kind: 'character', key, index: value.length })
+    state.setCollapsedCursor({ kind: 'char', key, index: value.length })
   },
   merge(state, { key }, { value }) {
     state.update(key, (prev) => prev + value)
@@ -462,7 +462,7 @@ const TextHandler: NodeHandler<'text'> = {
   },
   select(state, { key, value }, { index }) {
     state.setCollapsedCursor({
-      kind: 'character',
+      kind: 'char',
       key,
       index: index ?? value.length,
     })
@@ -470,8 +470,8 @@ const TextHandler: NodeHandler<'text'> = {
   getPathToRoot(state, { kind, key, index }) {
     const entry = state.getEntry(key)
     const currentPath: Path<'entry'> =
-      kind === 'character'
-        ? { kind: 'character', entry, index: index }
+      kind === 'char'
+        ? { kind: 'char', entry, index: index }
         : { kind: 'node', entry }
 
     if (entry.parent === null) return currentPath
@@ -491,7 +491,7 @@ const TextHandler: NodeHandler<'text'> = {
         (prev) => prev.slice(0, index) + text + prev.slice(index),
       )
       state.setCollapsedCursor({
-        kind: 'character',
+        kind: 'char',
         key,
         index: index + text.length,
       })
@@ -505,7 +505,7 @@ const TextHandler: NodeHandler<'text'> = {
       if (start === end) return null
 
       state.update(key, (prev) => prev.slice(0, start) + prev.slice(end))
-      state.setCollapsedCursor({ kind: 'character', key, index: start })
+      state.setCollapsedCursor({ kind: 'char', key, index: start })
 
       return { success: true }
     },
@@ -514,7 +514,7 @@ const TextHandler: NodeHandler<'text'> = {
       if (index >= value.length) return null
 
       state.update(key, (prev) => prev.slice(0, index) + prev.slice(index + 1))
-      state.setCollapsedCursor({ kind: 'character', key: key, index })
+      state.setCollapsedCursor({ kind: 'char', key: key, index })
 
       return { success: true }
     },
@@ -523,7 +523,7 @@ const TextHandler: NodeHandler<'text'> = {
       if (index <= 0) return null
 
       state.update(key, (prev) => prev.slice(0, index - 1) + prev.slice(index))
-      state.setCollapsedCursor({ kind: 'character', key, index: index - 1 })
+      state.setCollapsedCursor({ kind: 'char', key, index: index - 1 })
 
       return { success: true }
     },
@@ -604,7 +604,7 @@ function getPoint(node: Node | null, offset: number | null): Point | null {
   if (!isKey(key)) return null
 
   return isKeyType('text', key) && offset != null
-    ? { kind: 'character', key, index: offset }
+    ? { kind: 'char', key, index: offset }
     : { kind: 'node', key }
 }
 
@@ -648,7 +648,7 @@ type NodeLeaf<P extends PathType, T extends NodeType = NodeType> = {
 } & Extension<P, T>
 
 type CharacterLeaf<P extends PathType> = {
-  kind: 'character'
+  kind: 'char'
   index: number
   next?: never
 } & Extension<P, 'text'>

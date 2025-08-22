@@ -886,7 +886,7 @@ type ParentKey = Key | null
 type Key<T extends NodeType = NodeType> = `${number}:${T}`
 
 function isKeyType<T extends NodeType>(type: T, key: Key): key is Key<T> {
-  return key.endsWith(type)
+  return parseType(key) === type
 }
 
 function isType(value: unknown): value is NodeType {

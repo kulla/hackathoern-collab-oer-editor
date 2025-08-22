@@ -387,7 +387,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
   },
   select(state, { key, value }, { next }) {
     if (next == null) {
-      state.setCollapsedCursor({ kind: 'node', key })
+      state.setCaret({ kind: 'node', key })
     } else {
       const child = state.getEntry(value)
 
@@ -436,10 +436,10 @@ const TextHandler: NodeHandler<'text'> = {
     )
   },
   selectStart(state, { key }) {
-    state.setCollapsedCursor({ kind: 'char', key, index: 0 })
+    state.setCaret({ kind: 'char', key, index: 0 })
   },
   selectEnd(state, { key, value }) {
-    state.setCollapsedCursor({ kind: 'char', key, index: value.length })
+    state.setCaret({ kind: 'char', key, index: value.length })
   },
   merge(state, { key }, { value }) {
     state.update(key, (prev) => prev + value)
@@ -461,11 +461,7 @@ const TextHandler: NodeHandler<'text'> = {
     ]
   },
   select(state, { key, value }, { index }) {
-    state.setCollapsedCursor({
-      kind: 'char',
-      key,
-      index: index ?? value.length,
-    })
+    state.setCaret({ kind: 'char', key, index: index ?? value.length })
   },
   getPathToRoot(state, { kind, key, index }) {
     const entry = state.getEntry(key)
@@ -490,11 +486,7 @@ const TextHandler: NodeHandler<'text'> = {
         key,
         (prev) => prev.slice(0, index) + text + prev.slice(index),
       )
-      state.setCollapsedCursor({
-        kind: 'char',
-        key,
-        index: index + text.length,
-      })
+      state.setCaret({ kind: 'char', key, index: index + text.length })
 
       return { success: true }
     },
@@ -505,7 +497,7 @@ const TextHandler: NodeHandler<'text'> = {
       if (start === end) return null
 
       state.update(key, (prev) => prev.slice(0, start) + prev.slice(end))
-      state.setCollapsedCursor({ kind: 'char', key, index: start })
+      state.setCaret({ kind: 'char', key, index: start })
 
       return { success: true }
     },
@@ -514,7 +506,7 @@ const TextHandler: NodeHandler<'text'> = {
       if (index >= value.length) return null
 
       state.update(key, (prev) => prev.slice(0, index) + prev.slice(index + 1))
-      state.setCollapsedCursor({ kind: 'char', key: key, index })
+      state.setCaret({ kind: 'char', key: key, index })
 
       return { success: true }
     },
@@ -523,7 +515,7 @@ const TextHandler: NodeHandler<'text'> = {
       if (index <= 0) return null
 
       state.update(key, (prev) => prev.slice(0, index - 1) + prev.slice(index))
-      state.setCollapsedCursor({ kind: 'char', key, index: index - 1 })
+      state.setCaret({ kind: 'char', key, index: index - 1 })
 
       return { success: true }
     },
@@ -898,7 +890,7 @@ class WritableState extends ReadonlyState {
     this._updateCount += 1
   }
 
-  setCollapsedCursor(point: Point) {
+  setCaret(point: Point) {
     this.setCursor({ start: point, end: point })
   }
 

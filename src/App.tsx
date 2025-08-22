@@ -565,7 +565,7 @@ interface NodeHandler<T extends NodeType = NodeType> {
       node: Entry<T>,
       start: Path<'entry', T>,
       end: Path<'entry', T>,
-      ...payload: OperationPayload<C>
+      ...payload: CommandPayload<C>
     ) => { success: boolean } | null
   }
 }
@@ -678,7 +678,7 @@ enum Command {
   DeleteBackward = 'deleteBackward',
 }
 
-type OperationPayload<O extends Command> = O extends Command.InsertText
+type CommandPayload<O extends Command> = O extends Command.InsertText
   ? [string]
   : []
 
@@ -756,7 +756,7 @@ class StateManager<T extends NodeType = NodeType> {
 
   dispatchCommand<C extends Command>(
     command: C,
-    ...payload: OperationPayload<C>
+    ...payload: CommandPayload<C>
   ): boolean {
     return this.update((state) => {
       if (state.cursor == null) return true

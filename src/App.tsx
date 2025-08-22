@@ -14,19 +14,13 @@ import { invariant, isEqual } from 'es-toolkit'
 import { DebugPanel } from './components/debug-panel'
 import type { NodeType } from './nodes/types'
 
-const initialContent: TypedJSONValue<'content'> = {
-  type: 'content',
-  value: [
-    {
-      type: 'paragraph',
-      value: { type: 'text', value: 'Welcome this is an editor example.' },
-    },
-    { type: 'paragraph', value: { type: 'text', value: 'Hello World' } },
-  ],
-}
+const initialContent: JSONValue<'content'> = [
+  { type: 'paragraph', value: 'Welcome this is an editor example.' },
+  { type: 'paragraph', value: 'Hello World' },
+]
 
 export default function App() {
-  const { manager } = useStateManager(initialContent)
+  const { manager } = useStateManager('content', initialContent)
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
@@ -153,15 +147,12 @@ export default function App() {
 // Handlers for managing editor nodes
 
 const ContentHandler: NodeHandler<'content'> = {
-  insert(state, { value: children, type }, parent) {
+  insert(state, children, parent) {
     return state.insert({
-      type,
+      type: 'content',
       parent,
-      createValue: (key) => {
-        return children.map(
-          (child) => ParagraphHandler.insert(state, child, key).key,
-        )
-      },
+      createValue: (key) =>
+        children.map((child) => ParagraphHandler.insert(state, child, key).key),
     })
   },
   createEmpty(state, parent) {
@@ -172,11 +163,8 @@ const ContentHandler: NodeHandler<'content'> = {
     })
   },
   read(state, key) {
-    const { type, value } = state.getEntry(key)
-    return {
-      type,
-      value: value.map((childKey) => ParagraphHandler.read(state, childKey)),
-    }
+    const value = state.getEntry(key).value
+    return value.map((childKey) => ParagraphHandler.read(state, childKey))
   },
   render(state, { key, value }) {
     return (
@@ -414,15 +402,14 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
 }
 
 const TextHandler: NodeHandler<'text'> = {
-  insert(state, { value, type }, parent) {
-    return state.insert({ type, parent, createValue: () => value })
+  insert(state, value, parent) {
+    return state.insert({ type: 'text', parent, createValue: () => value })
   },
   createEmpty(state, parent) {
     return state.insert({ type: 'text', parent, createValue: () => '' })
   },
   read(state, key) {
-    const { type, value } = state.getEntry(key)
-    return { type, value }
+    return state.getEntry(key).value
   },
   render(_, { key, value }) {
     return (
@@ -534,14 +521,10 @@ function getHandler<T extends NodeType>(type: T | Key<T>): NodeHandler<T> {
 }
 
 interface NodeHandler<T extends NodeType = NodeType> {
-  insert(
-    state: WritableState,
-    node: TypedJSONValue<T>,
-    parent: ParentKey,
-  ): Entry<T>
+  insert(state: WritableState, node: JSONValue<T>, parent: ParentKey): Entry<T>
   createEmpty(state: WritableState, parent: ParentKey): Entry<T>
 
-  read(state: ReadonlyState, key: Key<T>): TypedJSONValue<T>
+  read(state: ReadonlyState, key: Key<T>): JSONValue<T>
   render(state: ReadonlyState, node: Entry<T>): ReactNode
   getPathToRoot(
     state: ReadonlyState,
@@ -684,8 +667,8 @@ type CommandPayload<O extends Command> = O extends Command.InsertText
 
 // State manager
 
-function useStateManager(initialContent: TypedJSONValue) {
-  const manager = useRef(new StateManager(initialContent)).current
+function useStateManager<T extends NodeType>(type: T, initial: JSONValue<T>) {
+  const manager = useRef(new StateManager(type, initial)).current
   const lastReturn = useRef({ manager, updateCount: manager.state.updateCount })
 
   return useSyncExternalStore(
@@ -712,12 +695,8 @@ class StateManager<T extends NodeType = NodeType> {
   private updateListeners: (() => void)[] = []
   private updateCallDepth = 0
 
-  constructor(initialContent: TypedJSONValue<T>) {
-    this.rootKey = getHandler(initialContent.type).insert(
-      this._state,
-      initialContent,
-      null,
-    ).key
+  constructor(type: T, initial: JSONValue<T>) {
+    this.rootKey = getHandler(type).insert(this._state, initial, null).key
   }
 
   addUpdateListener(listener: () => void): void {
@@ -741,7 +720,7 @@ class StateManager<T extends NodeType = NodeType> {
     return result
   }
 
-  read(): TypedJSONValue<T> {
+  read(): JSONValue<T> {
     return getHandler(this.rootKey).read(this._state, this.rootKey)
   }
 
@@ -920,27 +899,11 @@ interface EntryOfType<T extends NodeType = NodeType> {
   parent: ParentKey
   value: EntryValue<T>
 }
-
-type EntryValue<T extends NodeType> = ComputedEntryValue<JSONValue<T>>
-type ComputedEntryValue<V extends JSONValue> = V extends TypedJSONValue
-  ? Key<V['type']>
-  : V extends string | number | boolean
-    ? V
-    : V extends Array<infer U>
-      ? U extends TypedJSONValue
-        ? Key<U['type']>[]
-        : never
-      : V extends object
-        ? {
-            [K in keyof V]: V[K] extends TypedJSONValue
-              ? Key<V[K]['type']>
-              : never
-          }
-        : never
+type EntryValue<T extends NodeType> = NodeDescription[T]['entryValue']
 
 type ParentKey = Key | null
-type Key<T extends NodeType = NodeType> = { [S in T]: KeyOfType<S> }[T]
-type KeyOfType<T extends NodeType> = `${number}:${T}`
+type Key<T extends NodeType = NodeType> = { [S in T]: KeyOf<S> }[T]
+type KeyOf<T extends NodeType> = `${number}:${T}`
 
 function isKeyType<T extends NodeType>(type: T, key: Key): key is Key<T> {
   return key.endsWith(type)
@@ -969,20 +932,53 @@ function parseType<T extends NodeType>(key: Key<T>): T {
 
 // Description of the external JSON for the editor structure
 
-interface TypedJSONValue<T extends NodeType = NodeType> {
-  type: T
-  value: JSONValue<T>
-}
-
 type isParent<T extends NodeType> = JSONValue<T> extends PrimitiveValue
   ? false
   : true
 type PrimitiveValue = string | boolean | number
 
-type JSONValue<T extends NodeType = NodeType> = JSONValueMap[T]
+type JSONValue<T extends NodeType = NodeType> = NodeDescription[T]['jsonValue']
 
-interface JSONValueMap {
-  content: TypedJSONValue<'paragraph'>[]
-  paragraph: TypedJSONValue<'text'>
-  text: string
+interface NodeDescription {
+  content: ArrayNode<'paragraph'>
+  paragraph: WrappedNode<'paragraph', 'text'>
+  text: TextNode
 }
+
+/*interface ObjectNode<O extends Record<string, NodeType>> {
+  entryValue: { [K in keyof O]: Key<O[K]> }
+  jsonValue: { [K in keyof O]: JSONValue<O[K]> }
+  childType: O
+  indexType: keyof O
+}*/
+
+interface ArrayNode<C extends NodeType> {
+  entryValue: Key<C>[]
+  jsonValue: Array<JSONValue<C>>
+  childType: { [I in number]: C }
+  indexType: number
+}
+
+interface WrappedNode<T extends NodeType, C extends NodeType> {
+  entryValue: Key<C>
+  jsonValue: { type: T; value: JSONValue<C> }
+  childType: { [I in WrappedNodeIndex]: C }
+  indexType: WrappedNodeIndex
+}
+
+interface TextNode {
+  entryValue: string
+  jsonValue: string
+  childType: never
+  indexType: number
+}
+
+/*interface PrimitiveNode<C extends boolean | number | string> {
+  entryValue: C
+  jsonValue: C
+  childType: never
+  indexType: never
+}*/
+
+const WrappedNodeIndex = Symbol('WrappedNodeIndex')
+type WrappedNodeIndex = typeof WrappedNodeIndex

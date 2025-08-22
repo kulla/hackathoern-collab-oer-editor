@@ -594,8 +594,8 @@ interface Cursor {
   end: Point
 }
 
-type Point<T extends NodeType = NodeType> = { [S in T]: PointOfType<S> }[T]
-type PointOfType<T extends NodeType> = T extends 'text'
+type Point<T extends NodeType = NodeType> = { [S in T]: PointOf<S> }[T]
+type PointOf<T extends NodeType> = T extends 'text'
   ? CharacterLeaf<'key'> | NodeLeaf<'key', T>
   : NodeLeaf<'key', T>
 

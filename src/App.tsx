@@ -605,7 +605,7 @@ type Path<P extends PathType, T extends NodeType = NodeType> = {
 type PathOfType<P extends PathType, T extends NodeType> =
   | NodeLeaf<P, T>
   | (T extends 'text' ? CharacterLeaf<P> : never)
-  | (NodeDescription[T]['childType'] extends never ? never : Parent<P, T>)
+  | (ChildType<T> extends never ? never : Parent<P, T>)
 
 type Parent<P extends PathType, T extends NodeType = NodeType> = {
   kind: 'parent'
@@ -883,8 +883,7 @@ interface EntryOf<T extends NodeType = NodeType> {
 type EntryValue<T extends NodeType> = NodeDescription[T]['entryValue']
 
 type ParentKey = Key | null
-type Key<T extends NodeType = NodeType> = { [S in T]: KeyOf<S> }[T]
-type KeyOf<T extends NodeType> = `${number}:${T}`
+type Key<T extends NodeType = NodeType> = `${number}:${T}`
 
 function isKeyType<T extends NodeType>(type: T, key: Key): key is Key<T> {
   return key.endsWith(type)

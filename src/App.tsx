@@ -602,14 +602,10 @@ type PointOfType<T extends NodeType> = T extends 'text'
 type Path<P extends PathType, T extends NodeType = NodeType> = {
   [S in T]: PathOfType<P, S>
 }[T]
-type PathOfType<
-  P extends PathType,
-  T extends NodeType,
-> = isParent<T> extends true
-  ? Parent<P, T> | NodeLeaf<P, T>
-  : T extends 'text'
-    ? CharacterLeaf<P> | NodeLeaf<P, T>
-    : NodeLeaf<P, T>
+type PathOfType<P extends PathType, T extends NodeType> =
+  | NodeLeaf<P, T>
+  | (T extends 'text' ? CharacterLeaf<P> : never)
+  | (NodeDescription[T]['childType'] extends never ? never : Parent<P, T>)
 
 type Parent<P extends PathType, T extends NodeType = NodeType> = {
   kind: 'parent'
@@ -929,13 +925,6 @@ function parseType<T extends NodeType>(key: Key<T>): T {
   const indexOfSeparator = key.indexOf(':')
   return key.slice(indexOfSeparator + 1) as T
 }
-
-// Description of the external JSON for the editor structure
-
-type isParent<T extends NodeType> = JSONValue<T> extends PrimitiveValue
-  ? false
-  : true
-type PrimitiveValue = string | boolean | number
 
 type JSONValue<T extends NodeType = NodeType> = NodeDescription[T]['jsonValue']
 

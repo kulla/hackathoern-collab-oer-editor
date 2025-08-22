@@ -609,7 +609,7 @@ type PathOfType<P extends PathType, T extends NodeType> =
 
 type Parent<P extends PathType, T extends NodeType = NodeType> = {
   kind: 'parent'
-  index: NodeDescription[T]['indexType']
+  index: Index<T>
   next: Path<P, ChildType<T>>
 } & Extension<P, T>
 
@@ -917,6 +917,7 @@ function parseType<T extends NodeType>(key: Key<T>): T {
   return key.slice(indexOfSeparator + 1) as T
 }
 
+type Index<T extends NodeType = NodeType> = NodeDescription[T]['index']
 type JSONValue<T extends NodeType = NodeType> = NodeDescription[T]['jsonValue']
 
 interface NodeDescription {
@@ -936,21 +937,21 @@ interface ArrayNode<C extends NodeType> {
   entryValue: Key<C>[]
   jsonValue: Array<JSONValue<C>>
   childType: { [I in number]: C }
-  indexType: number
+  index: number
 }
 
 interface WrappedNode<T extends NodeType, C extends NodeType> {
   entryValue: Key<C>
   jsonValue: { type: T; value: JSONValue<C> }
   childType: { [I in WrappedNodeIndex]: C }
-  indexType: WrappedNodeIndex
+  index: WrappedNodeIndex
 }
 
 interface TextNode {
   entryValue: string
   jsonValue: string
   childType: never
-  indexType: number
+  index: number
 }
 
 /*interface PrimitiveNode<C extends boolean | number | string> {

@@ -166,16 +166,6 @@ const ContentHandler: NodeHandler<'content'> = {
     const value = state.getEntry(key).value
     return value.map((childKey) => ParagraphHandler.read(state, childKey))
   },
-  selectStart(state, { value }) {
-    const firstChildKey = value[0]
-    if (firstChildKey == null) return
-    ParagraphHandler.selectStart(state, state.getEntry(firstChildKey))
-  },
-  selectEnd(state, { value }) {
-    const lastChildKey = value[value.length - 1]
-    if (lastChildKey == null) return
-    ParagraphHandler.selectStart(state, state.getEntry(lastChildKey))
-  },
   split() {
     throw new Error('not implemented yet')
   },
@@ -232,14 +222,14 @@ const ContentHandler: NodeHandler<'content'> = {
           if (startNext != null) {
             ParagraphHandler.select(state, newEntry, startNext)
           } else {
-            ParagraphHandler.selectStart(state, newEntry)
+            state.get(newEntry.key).selectStart()
           }
 
           return newChildren
         }
 
         const newChild = ParagraphHandler.createEmpty(state, key)
-        ParagraphHandler.selectStart(state, newChild)
+        state.get(newChild.key).selectStart()
 
         return [newChild.key]
       })
@@ -258,7 +248,7 @@ const ContentHandler: NodeHandler<'content'> = {
         return ParagraphHandler.createEmpty(state, key)
       })()
 
-      ParagraphHandler.selectStart(state, newChild)
+      state.get(newChild.key).selectStart()
 
       state.update(key, (children) => [
         ...children.slice(0, index + 1),
@@ -290,7 +280,7 @@ const ContentHandler: NodeHandler<'content'> = {
       const currentChild = state.getEntry(value[index])
       const previousChild = state.getEntry(value[index - 1])
 
-      ParagraphHandler.selectEnd(state, previousChild)
+      state.get(previousChild).selectEnd()
       ParagraphHandler.merge(state, previousChild, currentChild)
 
       state.update(key, (children) => children.filter((_, i) => i !== index))
@@ -318,12 +308,6 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
   read(state, key) {
     const { type, value } = state.getEntry(key)
     return { type, value: TextHandler.read(state, value) }
-  },
-  selectStart(state, { value }) {
-    TextHandler.selectStart(state, state.getEntry(value))
-  },
-  selectEnd(state, { value }) {
-    TextHandler.selectEnd(state, state.getEntry(value))
   },
   split(state, entry, { next }, newParentKey) {
     const { parent, value } = entry
@@ -394,12 +378,6 @@ const TextHandler: NodeHandler<'text'> = {
   },
   read(state, key) {
     return state.getEntry(key).value
-  },
-  selectStart(state, { key }) {
-    state.setCaret({ kind: 'char', key, index: 0 })
-  },
-  selectEnd(state, { key, value }) {
-    state.setCaret({ kind: 'char', key, index: value.length })
   },
   merge(state, { key }, { value }) {
     state.update(key, (prev) => prev + value)
@@ -504,8 +482,6 @@ interface NodeHandler<T extends NodeType = NodeType> {
   ): Path<'entry'>
 
   select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void
-  selectStart(state: WritableState, node: Entry<T>): void
-  selectEnd(state: WritableState, node: Entry<T>): void
   split(
     state: WritableState,
     node: Entry<T>,
@@ -549,6 +525,8 @@ abstract class EditorNode<
   }
 
   abstract render(): ReactNode
+  abstract selectStart(): void
+  abstract selectEnd(): void
 
   protected get elementProps() {
     return {
@@ -585,6 +563,18 @@ class TextNode extends PrimitiveNode<'text', string> {
       </span>
     )
   }
+
+  selectStart() {
+    this.state.setCaret({ kind: 'char', key: this.key, index: 0 })
+  }
+
+  selectEnd() {
+    this.state.setCaret({
+      kind: 'char',
+      key: this.key,
+      index: this.value.length,
+    })
+  }
 }
 
 abstract class ParentNode<
@@ -597,6 +587,29 @@ abstract class ParentNode<
   // TODO: Remove later
   childType: ChildType = null as never
   index: IndexType = null as never
+
+  abstract getFirstChild(): EditorNode | undefined
+  abstract getLastChild(): EditorNode | undefined
+
+  selectStart() {
+    const firstChild = this.getFirstChild()
+
+    if (firstChild != null) {
+      firstChild.selectStart()
+    } else {
+      this.state.setCaret({ kind: 'node', key: this.key })
+    }
+  }
+
+  selectEnd() {
+    const lastChild = this.getLastChild()
+
+    if (lastChild != null) {
+      lastChild.selectEnd()
+    } else {
+      this.state.setCaret({ kind: 'node', key: this.key })
+    }
+  }
 }
 
 abstract class WrappedNode<
@@ -605,6 +618,14 @@ abstract class WrappedNode<
 > extends ParentNode<T, { type: T; value: JSONValue<C> }, Key<C>, C, never> {
   get child() {
     return this.state.get(this.value)
+  }
+
+  getFirstChild() {
+    return this.child
+  }
+
+  getLastChild() {
+    return this.child
   }
 }
 
@@ -630,6 +651,14 @@ abstract class ArrayNode<
 class ContentNode extends ArrayNode<'content', 'paragraph'> {
   get type() {
     return 'content' as const
+  }
+
+  getFirstChild() {
+    return this.children[0]
+  }
+
+  getLastChild() {
+    return this.children[this.children.length - 1]
   }
 
   render() {
@@ -957,7 +986,9 @@ class WritableState extends ReadonlyState {
     return `${this.lastKey}:${type}`
   }
 
-  get(key: Key): EditorNode<NodeType, unknown, unknown> {
+  get(arg: Key | Entry): EditorNode<NodeType, unknown, unknown> {
+    const key = isKey(arg) ? arg : arg.key
+
     // @ts-expect-error TODO
     return new nodeClasses[parseType(key)](this, key)
   }

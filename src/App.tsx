@@ -162,10 +162,6 @@ const ContentHandler: NodeHandler<'content'> = {
       createValue: (key) => [ParagraphHandler.createEmpty(state, key).key],
     })
   },
-  read(state, key) {
-    const value = state.getEntry(key).value
-    return value.map((childKey) => ParagraphHandler.read(state, childKey))
-  },
   split() {
     throw new Error('not implemented yet')
   },
@@ -305,10 +301,6 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
       createValue: (key) => TextHandler.createEmpty(state, key).key,
     })
   },
-  read(state, key) {
-    const { type, value } = state.getEntry(key)
-    return { type, value: TextHandler.read(state, value) }
-  },
   split(state, entry, { next }, newParentKey) {
     const { parent, value } = entry
     if (next == null) return null
@@ -375,9 +367,6 @@ const TextHandler: NodeHandler<'text'> = {
   },
   createEmpty(state, parent) {
     return state.insert({ type: 'text', parent, createValue: () => '' })
-  },
-  read(state, key) {
-    return state.getEntry(key).value
   },
   merge(state, { key }, { value }) {
     state.update(key, (prev) => prev + value)

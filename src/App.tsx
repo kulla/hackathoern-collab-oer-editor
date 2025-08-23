@@ -549,6 +549,14 @@ abstract class EditorNode<
   }
 
   abstract render(): ReactNode
+
+  protected get htmlAttributes() {
+    return {
+      key: this.key,
+      'data-key': this.key,
+      id: this.key,
+    }
+  }
 }
 
 abstract class PrimitiveNode<
@@ -572,12 +580,7 @@ class TextNode extends PrimitiveNode<'text', string> {
 
   render() {
     return (
-      <span
-        id={this.key}
-        key={this.key}
-        data-key={this.key}
-        className="text whitespace-pre-wrap"
-      >
+      <span {...this.htmlAttributes} className="text whitespace-pre-wrap">
         {this.value}
       </span>
     )
@@ -611,11 +614,7 @@ class ParagraphNode extends WrappedNode<'paragraph', 'text'> {
   }
 
   render() {
-    return (
-      <p id={this.key} key={this.key} data-key={this.key}>
-        {this.child.render()}
-      </p>
-    )
+    return <p {...this.htmlAttributes}>{this.child.render()}</p>
   }
 }
 
@@ -635,9 +634,7 @@ class ContentNode extends ArrayNode<'content', 'paragraph'> {
 
   render() {
     return (
-      <div id={this.key} key={this.key} data-key={this.key}>
-        {this.children.map((child) => child.render())}
-      </div>
+      <div {...this.htmlAttributes}>{this.children.map((c) => c.render())}</div>
     )
   }
 }

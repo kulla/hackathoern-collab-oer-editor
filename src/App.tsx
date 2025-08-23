@@ -550,7 +550,7 @@ abstract class EditorNode<
 
   abstract render(): ReactNode
 
-  protected get htmlAttributes() {
+  protected get elementProps() {
     return {
       key: this.key,
       'data-key': this.key,
@@ -580,7 +580,7 @@ class TextNode extends PrimitiveNode<'text', string> {
 
   render() {
     return (
-      <span {...this.htmlAttributes} className="text whitespace-pre-wrap">
+      <span {...this.elementProps} className="text whitespace-pre-wrap">
         {this.value}
       </span>
     )
@@ -614,7 +614,7 @@ class ParagraphNode extends WrappedNode<'paragraph', 'text'> {
   }
 
   render() {
-    return <p {...this.htmlAttributes}>{this.child.render()}</p>
+    return <p {...this.elementProps}>{this.child.render()}</p>
   }
 }
 
@@ -634,7 +634,7 @@ class ContentNode extends ArrayNode<'content', 'paragraph'> {
 
   render() {
     return (
-      <div {...this.htmlAttributes}>{this.children.map((c) => c.render())}</div>
+      <div {...this.elementProps}>{this.children.map((c) => c.render())}</div>
     )
   }
 }

@@ -474,7 +474,6 @@ interface NodeHandler<T extends NodeType = NodeType> {
   insert(state: WritableState, parent: ParentKey, node: JSONValue<T>): Entry<T>
   createEmpty(state: WritableState, parent: ParentKey): Entry<T>
 
-  read(state: ReadonlyState, key: Key<T>): JSONValue<T>
   getPathToRoot(
     state: ReadonlyState,
     at: Point<T>,
@@ -505,7 +504,6 @@ abstract class EditorNode<
   JSONValue = unknown,
   EntryValue = unknown,
 > {
-  jsonValue: JSONValue = null as never
   entryValue: EntryValue = null as never
 
   abstract type: T
@@ -523,6 +521,8 @@ abstract class EditorNode<
     // @ts-expect-error Fix later
     return this.entry.value
   }
+
+  abstract get jsonValue(): JSONValue
 
   abstract render(): ReactNode
   abstract selectStart(): void
@@ -544,6 +544,10 @@ abstract class PrimitiveNode<
   // TODO: Delete after Refactoring
   childType: never = null as never
   index: never = null as never
+
+  get jsonValue() {
+    return this.value
+  }
 
   setValue(newValue: C) {
     // @ts-expect-error Fix later
@@ -620,6 +624,11 @@ abstract class WrappedNode<
     return this.state.get(this.value)
   }
 
+  get jsonValue() {
+    // TODO: Remove type assertion after refactoring
+    return { type: this.type, value: this.child.jsonValue as JSONValue<C> }
+  }
+
   getFirstChild() {
     return this.child
   }
@@ -645,6 +654,11 @@ abstract class ArrayNode<
 > extends ParentNode<T, JSONValue<C>[], Key<C>[], C, number> {
   get children() {
     return this.value.map((key) => this.state.get(key))
+  }
+
+  get jsonValue() {
+    // TODO: Remove type assertion after refactoring
+    return this.children.map((child) => child.jsonValue as JSONValue<C>)
   }
 }
 
@@ -823,7 +837,8 @@ class StateManager<T extends NodeType = NodeType> {
   }
 
   read(): JSONValue<T> {
-    return getHandler(this.rootKey).read(this._state, this.rootKey)
+    // TODO: Remove type assertion after refactoring
+    return this._state.get(this.rootKey).jsonValue as JSONValue<T>
   }
 
   get state(): ReadonlyState {

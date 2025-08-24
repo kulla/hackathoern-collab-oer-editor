@@ -10,7 +10,7 @@ import {
 } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
-import { invariant, isEqual } from 'es-toolkit'
+import { invariant, isEqual, takeWhile, zip } from 'es-toolkit'
 import { DebugPanel } from './components/debug-panel'
 import type { NodeType } from './nodes/types'
 
@@ -82,13 +82,13 @@ export default function App() {
 
     const range = document.createRange()
 
-    if (start.kind === 'char') {
+    if (start.index != null) {
       range.setStart(startNode.firstChild ?? startNode, start.index)
     } else {
       range.setStart(startNode, 0)
     }
 
-    if (end.kind === 'char') {
+    if (end.index != null) {
       range.setEnd(endNode.firstChild ?? endNode, end.index)
     } else {
       range.setEnd(endNode, 0)
@@ -194,36 +194,36 @@ const ContentHandler: NodeHandler<'content'> = {
   select() {
     throw new Error('not implemented yet')
   },
-  getPathToRoot(state, { key }, next) {
-    const entry = state.getEntry(key)
-    const current: Path<'entry', 'content'> =
-      next == null
-        ? { kind: 'node', entry }
-        : {
-            kind: 'parent',
-            entry,
-            index: entry.value.indexOf(next.entry.key),
-            next,
-          }
-
-    // TODO: Handle case where entry.parent is null
-    return current
+  getIndexWithin({ value }, childKey) {
+    // TODO: Remove the 'as' cast when possible
+    return value.indexOf(childKey as Key<'paragraph'>)
   },
   onCommand: {
-    deleteRange(state, { key, value }, startPath, endPath) {
-      const { index: startIndex, next: startNext } = startPath
-      const { index: endIndex, next: endNext } = endPath
+    deleteRange(
+      state,
+      { key, value },
+      [startIndex, ...startNext],
+      [endIndex, ...endNext],
+    ) {
       const [start, end] = [startIndex ?? 0, endIndex ?? value.length]
 
       if (start === end) return null
 
       const left =
         startNext != null
-          ? ParagraphHandler.split(state, startNext.entry, startNext)?.[0]
+          ? ParagraphHandler.split(
+              state,
+              state.getEntry(value[start]),
+              startNext as IndexPath<'paragraph'>,
+            )?.[0]
           : null
       const right =
         endNext != null
-          ? ParagraphHandler.split(state, endNext.entry, endNext)?.[1]
+          ? ParagraphHandler.split(
+              state,
+              state.getEntry(value[end]),
+              endNext as IndexPath<'paragraph'>,
+            )?.[1]
           : null
 
       if (left && right) ParagraphHandler.merge(state, left, right)
@@ -239,7 +239,11 @@ const ContentHandler: NodeHandler<'content'> = {
           const newEntry = state.getEntry(newChildren[start])
 
           if (startNext != null) {
-            ParagraphHandler.select(state, newEntry, startNext)
+            ParagraphHandler.select(
+              state,
+              newEntry,
+              startNext as IndexPath<'paragraph'>,
+            )
           } else {
             ParagraphHandler.selectStart(state, newEntry)
           }
@@ -255,11 +259,16 @@ const ContentHandler: NodeHandler<'content'> = {
 
       return { success: true }
     },
-    insertNewElement(state, { key }, { index, next }, endPath) {
-      if (index == null || index !== endPath?.index) return null
+    insertNewElement(state, { key, value }, [index, ...next], [endIndex]) {
+      if (index == null || index !== endIndex) return null
       const newChild = (() => {
         if (next != null) {
-          const split = ParagraphHandler.split(state, next.entry, next)
+          const split = ParagraphHandler.split(
+            state,
+            state.getEntry(value[index]),
+            next as IndexPath<'paragraph'>,
+            key,
+          )
 
           if (split != null) return split[1]
         }
@@ -277,8 +286,8 @@ const ContentHandler: NodeHandler<'content'> = {
 
       return { success: true }
     },
-    deleteForward(state, { key, value }, { index }, endPath) {
-      if (index == null || index !== endPath?.index) return null
+    deleteForward(state, { key, value }, [index], [endIndex]) {
+      if (index == null || index !== endIndex) return null
       if (value.length <= 1 || index >= value.length) return null
 
       const currentChild = state.getEntry(value[index])
@@ -292,8 +301,8 @@ const ContentHandler: NodeHandler<'content'> = {
 
       return { success: true }
     },
-    deleteBackward(state, { key, value }, { index }, endPath) {
-      if (index == null || index !== endPath?.index) return null
+    deleteBackward(state, { key, value }, [index], [endIndex]) {
+      if (index == null || index !== endIndex) return null
       if (value.length <= 1 || index <= 0) return null
 
       const currentChild = state.getEntry(value[index])
@@ -341,7 +350,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
   selectEnd(state, { value }) {
     TextHandler.selectEnd(state, state.getEntry(value))
   },
-  split(state, entry, { next }, newParentKey) {
+  split(state, entry, [_, ...next], newParentKey) {
     const { parent, value } = entry
     if (next == null) return null
 
@@ -354,7 +363,7 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
         const split = getHandler(child.type).split(
           state,
           child,
-          next,
+          next as IndexPath<typeof child.type>,
           newParent,
         )
 
@@ -374,29 +383,17 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
 
     return TextHandler.merge(state, child, secondChild)
   },
-  select(state, { key, value }, { next }) {
+  select(state, { key, value }, [_, ...next]) {
     if (next == null) {
-      state.setCaret({ kind: 'node', key })
+      state.setCaret({ key })
     } else {
       const child = state.getEntry(value)
 
-      TextHandler.select(state, child, next)
+      TextHandler.select(state, child, next as IndexPath<typeof child.type>)
     }
   },
-  getPathToRoot(state, { key }, next) {
-    const entry = state.getEntry(key)
-    const current: Path<'entry', 'paragraph'> =
-      next == null
-        ? { kind: 'node', entry }
-        : { kind: 'parent', entry, index: null as never, next }
-
-    if (entry.parent === null) return current
-
-    return getHandler(entry.parent).getPathToRoot(
-      state,
-      { kind: 'node', key: entry.parent },
-      current,
-    )
+  getIndexWithin() {
+    return undefined as never
   },
   onCommand: {},
 }
@@ -424,16 +421,16 @@ const TextHandler: NodeHandler<'text'> = {
     )
   },
   selectStart(state, { key }) {
-    state.setCaret({ kind: 'char', key, index: 0 })
+    state.setCaret({ key, index: 0 })
   },
   selectEnd(state, { key, value }) {
-    state.setCaret({ kind: 'char', key, index: value.length })
+    state.setCaret({ key, index: value.length })
   },
   merge(state, { key }, { value }) {
     state.update(key, (prev) => prev + value)
     return true
   },
-  split(state, { parent, key, value }, { index }, newParentKey) {
+  split(state, { parent, key, value }, [index], newParentKey) {
     if (index == null || index >= value.length) return null
 
     const leftPart = value.slice(0, index)
@@ -448,62 +445,50 @@ const TextHandler: NodeHandler<'text'> = {
       }),
     ]
   },
-  select(state, { key, value }, { index }) {
-    state.setCaret({ kind: 'char', key, index: index ?? value.length })
+  select(state, { key, value }, [index]) {
+    state.setCaret({ key, index: index ?? value.length })
   },
-  getPathToRoot(state, { kind, key, index }) {
-    const entry = state.getEntry(key)
-    const currentPath: Path<'entry'> =
-      kind === 'char'
-        ? { kind: 'char', entry, index: index }
-        : { kind: 'node', entry }
-
-    if (entry.parent === null) return currentPath
-
-    return getHandler(entry.parent).getPathToRoot(
-      state,
-      { kind: 'node', key: entry.parent },
-      currentPath,
-    )
+  getIndexWithin() {
+    throw new Error('Text nodes cannot have children')
   },
   onCommand: {
-    insertText(state, { key }, { index }, endPath, text) {
-      if (index == null || index !== endPath?.index) return null
+    insertText(state, { key }, [index], [endIndex], text) {
+      if (index == null || index !== endIndex) return null
 
       state.update(
         key,
         (prev) => prev.slice(0, index) + text + prev.slice(index),
       )
-      state.setCaret({ kind: 'char', key, index: index + text.length })
+      state.setCaret({ key, index: index + text.length })
 
       return { success: true }
     },
-    deleteRange(state, { key, value }, startPath, endPath) {
-      const start = startPath?.index ?? 0
-      const end = endPath?.index ?? value.length
+    deleteRange(state, { key, value }, [startIndex], [endIndex]) {
+      const start = startIndex ?? 0
+      const end = endIndex ?? value.length
 
       if (start === end) return null
 
       state.update(key, (prev) => prev.slice(0, start) + prev.slice(end))
-      state.setCaret({ kind: 'char', key, index: start })
+      state.setCaret({ key, index: start })
 
       return { success: true }
     },
-    deleteForward(state, { key, value }, { index }, endPath) {
-      if (index == null || index !== endPath?.index) return null
+    deleteForward(state, { key, value }, [index], [endIndex]) {
+      if (index == null || index !== endIndex) return null
       if (index >= value.length) return null
 
       state.update(key, (prev) => prev.slice(0, index) + prev.slice(index + 1))
-      state.setCaret({ kind: 'char', key: key, index })
+      state.setCaret({ key: key, index })
 
       return { success: true }
     },
-    deleteBackward(state, { key }, { index }, endPath) {
-      if (index == null || index !== endPath?.index) return null
+    deleteBackward(state, { key }, [index], [endIndex]) {
+      if (index == null || index !== endIndex) return null
       if (index <= 0) return null
 
       state.update(key, (prev) => prev.slice(0, index - 1) + prev.slice(index))
-      state.setCaret({ kind: 'char', key, index: index - 1 })
+      state.setCaret({ key, index: index - 1 })
 
       return { success: true }
     },
@@ -516,8 +501,13 @@ const handlers: { [T in NodeType]: NodeHandler<T> } = {
   text: TextHandler,
 }
 
-function getHandler<T extends NodeType>(type: T | Key<T>): NodeHandler<T> {
-  return handlers[isType(type) ? type : parseType(type)]
+function getHandler<T extends NodeType>(
+  arg: T | Key<T> | Entry<T>,
+): NodeHandler<T> {
+  // TODO: Remove type assertion when possible
+  const type: T = isType(arg) ? arg : isKey(arg) ? parseType(arg) : arg.type
+
+  return handlers[type]
 }
 
 interface NodeHandler<T extends NodeType = NodeType> {
@@ -526,19 +516,15 @@ interface NodeHandler<T extends NodeType = NodeType> {
 
   read(state: ReadonlyState, key: Key<T>): JSONValue<T>
   render(state: ReadonlyState, node: Entry<T>): ReactNode
-  getPathToRoot(
-    state: ReadonlyState,
-    at: Point<T>,
-    next?: Path<'entry', ChildType<T>>,
-  ): Path<'entry'>
+  getIndexWithin(entry: Entry<T>, child: Key): Index<T>
 
-  select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void
+  select(state: WritableState, node: Entry<T>, at: IndexPath<T>): void
   selectStart(state: WritableState, node: Entry<T>): void
   selectEnd(state: WritableState, node: Entry<T>): void
   split(
     state: WritableState,
     node: Entry<T>,
-    at: Path<'index', T>,
+    at: IndexPath<T>,
     parent?: ParentKey,
   ): [Entry<T>, Entry<T>] | null
   merge(state: WritableState, node: Entry<T>, withNode: Entry<T>): true | null
@@ -546,8 +532,8 @@ interface NodeHandler<T extends NodeType = NodeType> {
     [C in Command]?: (
       state: WritableState,
       node: Entry<T>,
-      start: Path<'entry', T>,
-      end: Path<'entry', T>,
+      start: IndexPath<T>,
+      end: IndexPath<T>,
       ...payload: CommandPayload<C>
     ) => { success: boolean } | null
   }
@@ -580,57 +566,27 @@ function getPoint(node: Node | null, offset: number | null): Point | null {
   if (!isKey(key)) return null
 
   return isKeyType('text', key) && offset != null
-    ? { kind: 'char', key, index: offset }
-    : { kind: 'node', key }
+    ? { key, index: offset }
+    : { key }
 }
 
 function isCollapsed({ start, end }: Cursor): boolean {
   return isEqual(start, end)
 }
 
-// TODO: Update to "caret" or "range"
+type Path = PathFrame[]
+type PathFrame = { entry: Entry; index?: Index }
+type IndexPath<T extends NodeType> = [Index<T>, ...Index[]] | []
+
 interface Cursor {
   start: Point
   end: Point
 }
 
-type Point<T extends NodeType = NodeType> = { [S in T]: PointOf<S> }[T]
-type PointOf<T extends NodeType> = T extends 'text'
-  ? CharacterLeaf<'key'> | NodeLeaf<'key', T>
-  : NodeLeaf<'key', T>
-
-type Path<P extends PathType, T extends NodeType = NodeType> = {
-  [S in T]: PathOfType<P, S>
-}[T]
-type PathOfType<P extends PathType, T extends NodeType> =
-  | NodeLeaf<P, T>
-  | (T extends 'text' ? CharacterLeaf<P> : never)
-  | (ChildType<T> extends never ? never : Parent<P, T>)
-
-type Parent<P extends PathType, T extends NodeType = NodeType> = {
-  kind: 'parent'
-  index: Index<T>
-  next: Path<P, ChildType<T>>
-} & Extension<P, T>
-
-type NodeLeaf<P extends PathType, T extends NodeType = NodeType> = {
-  kind: 'node'
-  index?: never
-  next?: never
-} & Extension<P, T>
-
-type CharacterLeaf<P extends PathType> = {
-  kind: 'char'
-  index: number
-  next?: never
-} & Extension<P, 'text'>
-
-type Extension<P extends PathType, T extends NodeType> = P extends 'key'
-  ? { key: Key<T> }
-  : P extends 'entry'
-    ? { entry: Entry<T> }
-    : unknown
-type PathType = 'key' | 'entry' | 'index'
+interface Point {
+  key: Key
+  index?: number
+}
 
 // Operations for the editor structure
 
@@ -735,50 +691,60 @@ class StateManager<T extends NodeType = NodeType> {
       }
 
       const { start, end } = state.cursor
-      let startPath = getHandler(start.key).getPathToRoot(state, start)
-      let endPath = getHandler(end.key).getPathToRoot(state, end)
-      const targetNodeStack: Path<'entry'>[] = []
+      const startPath = getPathToRoot(state, start)
+      const endPath = getPathToRoot(state, end)
 
-      while (startPath.entry.key === endPath.entry.key) {
-        targetNodeStack.push(startPath)
+      const commonPath: Path = takeWhile(
+        zip(startPath, endPath),
+        ([a, b]) => a.entry.key === b.entry.key,
+      ).map(([a, _]) => a)
+      const startIndex = startPath
+        .slice(Math.max(commonPath.length - 1, 0))
+        .map(({ index }) => index)
+      const endIndex = endPath
+        .slice(Math.max(commonPath.length - 1, 0))
+        .map(({ index }) => index)
 
-        if (
-          startPath.next != null &&
-          endPath.next != null &&
-          startPath.index === endPath.index
-        ) {
-          startPath = startPath.next
-          endPath = endPath.next
-        } else {
-          break
-        }
-      }
-
-      let targetNode = targetNodeStack.pop()?.entry ?? startPath.entry
+      let targetNode = commonPath.pop()?.entry ?? startPath[0].entry
 
       while (true) {
+        // TODO: Remove type assertions when possible
         const result = getHandler(targetNode.type).onCommand[command]?.(
           state,
           targetNode,
-          startPath,
-          endPath,
+          startIndex as IndexPath<typeof targetNode.type>,
+          endIndex as IndexPath<typeof targetNode.type>,
           ...payload,
         )
 
         if (result?.success) return true
 
-        const nextTargetPath = targetNodeStack.pop()
+        const nextTargetPath = commonPath.pop()
 
         if (nextTargetPath == null) break
 
-        startPath = nextTargetPath
-        endPath = nextTargetPath
+        startIndex.unshift(nextTargetPath.index)
+        endIndex.unshift(nextTargetPath.index)
         targetNode = nextTargetPath.entry
       }
 
       return false
     })
   }
+}
+
+function getPathToRoot(state: ReadonlyState, point: Point): Path {
+  const entry = state.getEntry(point.key)
+  const path: Path =
+    point.index != null ? [{ entry, index: point.index }] : [{ entry }]
+
+  while (path[0].entry.parent != null) {
+    const parent = state.getEntry(path[0].entry.parent)
+    const index = getHandler(parent).getIndexWithin(parent, path[0].entry.key)
+    path.unshift({ entry: parent, index })
+  }
+
+  return path
 }
 
 // State management for an editor structure
@@ -910,8 +876,9 @@ function parseType<T extends NodeType>(key: Key<T>): T {
   return key.slice(indexOfSeparator + 1) as T
 }
 
-type ChildType<T extends NodeType> = NodeDescription[T]['childType']
-type Index<T extends NodeType> = NodeDescription[T]['index']
+type Index<T extends NodeType = NodeType> = T extends 'text'
+  ? number
+  : NodeDescription[T]['index']
 type JSONValue<T extends NodeType = NodeType> = NodeDescription[T]['jsonValue']
 
 interface NodeDescription {
@@ -923,30 +890,23 @@ interface NodeDescription {
 /*interface ObjectNode<O extends Record<string, NodeType>> {
   entryValue: { [K in keyof O]: Key<O[K]> }
   jsonValue: { [K in keyof O]: JSONValue<O[K]> }
-  childType: O
-  indexType: keyof O
+  index: keyof O
 }*/
 
 interface ArrayNode<C extends NodeType> {
   entryValue: Key<C>[]
   jsonValue: Array<JSONValue<C>>
-  childType: C
   index: number
 }
 
 interface WrappedNode<T extends NodeType, C extends NodeType> {
   entryValue: Key<C>
   jsonValue: { type: T; value: JSONValue<C> }
-  childType: C
-  index: WrappedNodeIndex
+  index: never
 }
 
 interface PrimitiveNode<C extends boolean | number | string> {
   entryValue: C
   jsonValue: C
-  childType: never
   index: never
 }
-
-const WrappedNodeIndex = Symbol('WrappedNodeIndex')
-type WrappedNodeIndex = typeof WrappedNodeIndex

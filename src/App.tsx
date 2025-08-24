@@ -398,16 +398,48 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
   onCommand: {},
 }
 
+// TODO: Automatically check which types T can be
+function createPrimitiveHandler<T extends 'text'>({
+  type,
+  emptyValue,
+}: {
+  type: T
+  emptyValue: EntryValue<T>
+}) {
+  return {
+    insert(state, parent, value) {
+      return state.insert({ type, parent, createValue: () => value })
+    },
+    createEmpty(state, parent) {
+      return state.insert({ type, parent, createValue: () => emptyValue })
+    },
+    read(state, key) {
+      return state.getEntry(key).value
+    },
+    selectStart(state, { key }) {
+      state.setCaret({ key })
+    },
+    selectEnd(state, { key }) {
+      state.setCaret({ key })
+    },
+    select(state, { key }) {
+      state.setCaret({ key })
+    },
+    merge() {
+      return null
+    },
+    split() {
+      return null
+    },
+    getIndexWithin() {
+      throw new Error('Primitive nodes cannot have children')
+    },
+    onCommand: {},
+  } as Omit<NodeHandler<T>, 'render'>
+}
+
 const TextHandler: NodeHandler<'text'> = {
-  insert(state, parent, value) {
-    return state.insert({ type: 'text', parent, createValue: () => value })
-  },
-  createEmpty(state, parent) {
-    return state.insert({ type: 'text', parent, createValue: () => '' })
-  },
-  read(state, key) {
-    return state.getEntry(key).value
-  },
+  ...createPrimitiveHandler({ type: 'text', emptyValue: '' }),
   render(_, { key, value }) {
     return (
       <span
@@ -425,6 +457,9 @@ const TextHandler: NodeHandler<'text'> = {
   },
   selectEnd(state, { key, value }) {
     state.setCaret({ key, index: value.length })
+  },
+  select(state, { key, value }, [index]) {
+    state.setCaret({ key, index: index ?? value.length })
   },
   merge(state, { key }, { value }) {
     state.update(key, (prev) => prev + value)
@@ -444,12 +479,6 @@ const TextHandler: NodeHandler<'text'> = {
         createValue: () => rightPart,
       }),
     ]
-  },
-  select(state, { key, value }, [index]) {
-    state.setCaret({ key, index: index ?? value.length })
-  },
-  getIndexWithin() {
-    throw new Error('Text nodes cannot have children')
   },
   onCommand: {
     insertText(state, { key }, [index], [endIndex], text) {
@@ -833,7 +862,9 @@ class WritableState extends ReadonlyState {
   }
 }
 
-type InsertArg<T extends NodeType, R> = Omit<Entry<T>, 'key' | 'value'> & {
+interface InsertArg<T extends NodeType, R> {
+  type: T
+  parent: ParentKey
   createValue: (key: Key<T>) => EntryValue<T> | R
 }
 

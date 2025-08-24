@@ -504,12 +504,12 @@ abstract class EditorNode<
 
   constructor(
     protected state: WritableState,
-    protected entry: Entry<T>,
+    protected _entry: Entry<T>,
   ) {
-    this.key = entry.key
-    this.parent = entry.parent
+    this.key = _entry.key
+    this.parent = _entry.parent
     // TODO: Remove type assertion after refactoring
-    this.value = entry.value as EntryValue
+    this.value = _entry.value as EntryValue
   }
 
   abstract get jsonValue(): JSONValue

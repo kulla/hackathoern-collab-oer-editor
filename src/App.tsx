@@ -497,19 +497,18 @@ abstract class EditorNode<
 
   abstract type: T
 
-  protected key: Key<T>
-  protected parent: ParentKey
-  // TODO: Add "protected" after refactoring
-  value: EntryValue
-
   constructor(
     protected state: WritableState,
-    protected _entry: Entry<T>,
-  ) {
-    this.key = _entry.key
-    this.parent = _entry.parent
-    // TODO: Remove type assertion after refactoring
-    this.value = _entry.value as EntryValue
+    protected key: Key<T>,
+  ) {}
+
+  get entry(): Entry<T> {
+    return this.state.getEntry(this.key)
+  }
+
+  get value(): EntryValue {
+    // @ts-expect-error Fix later
+    return this.entry.value
   }
 
   abstract get jsonValue(): JSONValue
@@ -988,10 +987,10 @@ class WritableState extends ReadonlyState {
   }
 
   get(arg: Key | Entry): EditorNode<NodeType, unknown, unknown> {
-    const entry = isKey(arg) ? this.getEntry(arg) : arg
+    const key = isKey(arg) ? arg : arg.key
 
     // @ts-expect-error TODO
-    return new nodeClasses[entry.type](this, entry)
+    return new nodeClasses[parseType(key)](this, key)
   }
 }
 

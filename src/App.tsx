@@ -641,12 +641,6 @@ abstract class ArrayNode<
     // TODO: Remove type assertion after refactoring
     return this.children.map((child) => child.jsonValue as JSONValue<C>)
   }
-}
-
-class ContentNode extends ArrayNode<'content', 'paragraph'> {
-  get type() {
-    return 'content' as const
-  }
 
   getFirstChild() {
     return this.children[0]
@@ -654,6 +648,12 @@ class ContentNode extends ArrayNode<'content', 'paragraph'> {
 
   getLastChild() {
     return this.children[this.children.length - 1]
+  }
+}
+
+class ContentNode extends ArrayNode<'content', 'paragraph'> {
+  get type() {
+    return 'content' as const
   }
 
   render() {

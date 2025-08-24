@@ -534,10 +534,6 @@ abstract class PrimitiveNode<
     return this.value
   }
 
-  setValue(newValue: C) {
-    // @ts-expect-error Fix later
-    this.state.update(this.key, newValue)
-  }
 }
 
 class TextNode extends PrimitiveNode<'text', string> {

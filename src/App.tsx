@@ -518,11 +518,7 @@ abstract class EditorNode<
   abstract selectEnd(): void
 
   protected get elementProps() {
-    return {
-      key: this.key,
-      'data-key': this.key,
-      id: this.key,
-    }
+    return { key: this.key, 'data-key': this.key, id: this.key }
   }
 }
 

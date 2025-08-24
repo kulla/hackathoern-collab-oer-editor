@@ -162,6 +162,29 @@ const ContentHandler: NodeHandler<'content'> = {
       createValue: (key) => [ParagraphHandler.createEmpty(state, key).key],
     })
   },
+  read(state, key) {
+    const value = state.getEntry(key).value
+    return value.map((childKey) => ParagraphHandler.read(state, childKey))
+  },
+  render(state, { key, value }) {
+    return (
+      <div id={key} key={key} data-key={key}>
+        {value.map((childKey) =>
+          ParagraphHandler.render(state, state.getEntry(childKey)),
+        )}
+      </div>
+    )
+  },
+  selectStart(state, { value }) {
+    const firstChildKey = value[0]
+    if (firstChildKey == null) return
+    ParagraphHandler.selectStart(state, state.getEntry(firstChildKey))
+  },
+  selectEnd(state, { value }) {
+    const lastChildKey = value[value.length - 1]
+    if (lastChildKey == null) return
+    ParagraphHandler.selectStart(state, state.getEntry(lastChildKey))
+  },
   split() {
     throw new Error('not implemented yet')
   },
@@ -218,14 +241,14 @@ const ContentHandler: NodeHandler<'content'> = {
           if (startNext != null) {
             ParagraphHandler.select(state, newEntry, startNext)
           } else {
-            state.get(newEntry.key).selectStart()
+            ParagraphHandler.selectStart(state, newEntry)
           }
 
           return newChildren
         }
 
         const newChild = ParagraphHandler.createEmpty(state, key)
-        state.get(newChild.key).selectStart()
+        ParagraphHandler.selectStart(state, newChild)
 
         return [newChild.key]
       })
@@ -244,7 +267,7 @@ const ContentHandler: NodeHandler<'content'> = {
         return ParagraphHandler.createEmpty(state, key)
       })()
 
-      state.get(newChild.key).selectStart()
+      ParagraphHandler.selectStart(state, newChild)
 
       state.update(key, (children) => [
         ...children.slice(0, index + 1),
@@ -276,7 +299,7 @@ const ContentHandler: NodeHandler<'content'> = {
       const currentChild = state.getEntry(value[index])
       const previousChild = state.getEntry(value[index - 1])
 
-      state.get(previousChild).selectEnd()
+      ParagraphHandler.selectEnd(state, previousChild)
       ParagraphHandler.merge(state, previousChild, currentChild)
 
       state.update(key, (children) => children.filter((_, i) => i !== index))
@@ -300,6 +323,23 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
       parent,
       createValue: (key) => TextHandler.createEmpty(state, key).key,
     })
+  },
+  read(state, key) {
+    const { type, value } = state.getEntry(key)
+    return { type, value: TextHandler.read(state, value) }
+  },
+  render(state, { key, value }) {
+    return (
+      <p id={key} key={key} data-key={key}>
+        {TextHandler.render(state, state.getEntry(value))}
+      </p>
+    )
+  },
+  selectStart(state, { value }) {
+    TextHandler.selectStart(state, state.getEntry(value))
+  },
+  selectEnd(state, { value }) {
+    TextHandler.selectEnd(state, state.getEntry(value))
   },
   split(state, entry, { next }, newParentKey) {
     const { parent, value } = entry
@@ -367,6 +407,27 @@ const TextHandler: NodeHandler<'text'> = {
   },
   createEmpty(state, parent) {
     return state.insert({ type: 'text', parent, createValue: () => '' })
+  },
+  read(state, key) {
+    return state.getEntry(key).value
+  },
+  render(_, { key, value }) {
+    return (
+      <span
+        id={key}
+        key={key}
+        data-key={key}
+        className="text whitespace-pre-wrap"
+      >
+        {value}
+      </span>
+    )
+  },
+  selectStart(state, { key }) {
+    state.setCaret({ kind: 'char', key, index: 0 })
+  },
+  selectEnd(state, { key, value }) {
+    state.setCaret({ kind: 'char', key, index: value.length })
   },
   merge(state, { key }, { value }) {
     state.update(key, (prev) => prev + value)
@@ -463,6 +524,8 @@ interface NodeHandler<T extends NodeType = NodeType> {
   insert(state: WritableState, parent: ParentKey, node: JSONValue<T>): Entry<T>
   createEmpty(state: WritableState, parent: ParentKey): Entry<T>
 
+  read(state: ReadonlyState, key: Key<T>): JSONValue<T>
+  render(state: ReadonlyState, node: Entry<T>): ReactNode
   getPathToRoot(
     state: ReadonlyState,
     at: Point<T>,
@@ -470,6 +533,8 @@ interface NodeHandler<T extends NodeType = NodeType> {
   ): Path<'entry'>
 
   select(state: WritableState, node: Entry<T>, at: Path<'index', T>): void
+  selectStart(state: WritableState, node: Entry<T>): void
+  selectEnd(state: WritableState, node: Entry<T>): void
   split(
     state: WritableState,
     node: Entry<T>,
@@ -486,187 +551,6 @@ interface NodeHandler<T extends NodeType = NodeType> {
       ...payload: CommandPayload<C>
     ) => { success: boolean } | null
   }
-}
-
-abstract class EditorNode<
-  T extends NodeType = NodeType,
-  JSONValue = unknown,
-  EntryValue = unknown,
-> {
-  entryValue: EntryValue = null as never
-
-  abstract type: T
-
-  constructor(
-    protected state: WritableState,
-    protected key: Key<T>,
-  ) {}
-
-  get entry(): Entry<T> {
-    return this.state.getEntry(this.key)
-  }
-
-  get value(): EntryValue {
-    // @ts-expect-error Fix later
-    return this.entry.value
-  }
-
-  abstract get jsonValue(): JSONValue
-
-  abstract render(): ReactNode
-  abstract selectStart(): void
-  abstract selectEnd(): void
-
-  protected get elementProps() {
-    return { key: this.key, 'data-key': this.key, id: this.key }
-  }
-}
-
-abstract class PrimitiveNode<
-  T extends 'text',
-  C extends string | number | boolean,
-> extends EditorNode<T, C, C> {
-  // TODO: Delete after Refactoring
-  childType: never = null as never
-  index: never = null as never
-
-  get jsonValue() {
-    return this.value
-  }
-
-}
-
-class TextNode extends PrimitiveNode<'text', string> {
-  get type() {
-    return 'text' as const
-  }
-
-  render() {
-    return (
-      <span {...this.elementProps} className="text whitespace-pre-wrap">
-        {this.value}
-      </span>
-    )
-  }
-
-  selectStart() {
-    this.state.setCaret({ kind: 'char', key: this.key, index: 0 })
-  }
-
-  selectEnd() {
-    this.state.setCaret({
-      kind: 'char',
-      key: this.key,
-      index: this.value.length,
-    })
-  }
-}
-
-abstract class ParentNode<
-  T extends NodeType,
-  JSONValue,
-  EntryValue,
-  ChildType,
-  IndexType,
-> extends EditorNode<T, JSONValue, EntryValue> {
-  // TODO: Remove later
-  childType: ChildType = null as never
-  index: IndexType = null as never
-
-  abstract getFirstChild(): EditorNode | undefined
-  abstract getLastChild(): EditorNode | undefined
-
-  selectStart() {
-    const firstChild = this.getFirstChild()
-
-    if (firstChild != null) {
-      firstChild.selectStart()
-    } else {
-      this.state.setCaret({ kind: 'node', key: this.key })
-    }
-  }
-
-  selectEnd() {
-    const lastChild = this.getLastChild()
-
-    if (lastChild != null) {
-      lastChild.selectEnd()
-    } else {
-      this.state.setCaret({ kind: 'node', key: this.key })
-    }
-  }
-}
-
-abstract class WrappedNode<
-  T extends NodeType,
-  C extends NodeType,
-> extends ParentNode<T, { type: T; value: JSONValue<C> }, Key<C>, C, never> {
-  get child() {
-    return this.state.get(this.value)
-  }
-
-  get jsonValue() {
-    // TODO: Remove type assertion after refactoring
-    return { type: this.type, value: this.child.jsonValue as JSONValue<C> }
-  }
-
-  getFirstChild() {
-    return this.child
-  }
-
-  getLastChild() {
-    return this.child
-  }
-}
-
-class ParagraphNode extends WrappedNode<'paragraph', 'text'> {
-  get type() {
-    return 'paragraph' as const
-  }
-
-  render() {
-    return <p {...this.elementProps}>{this.child.render()}</p>
-  }
-}
-
-abstract class ArrayNode<
-  T extends NodeType,
-  C extends NodeType,
-> extends ParentNode<T, JSONValue<C>[], Key<C>[], C, number> {
-  get children() {
-    return this.value.map((key) => this.state.get(key))
-  }
-
-  get jsonValue() {
-    // TODO: Remove type assertion after refactoring
-    return this.children.map((child) => child.jsonValue as JSONValue<C>)
-  }
-
-  getFirstChild() {
-    return this.children[0]
-  }
-
-  getLastChild() {
-    return this.children[this.children.length - 1]
-  }
-}
-
-class ContentNode extends ArrayNode<'content', 'paragraph'> {
-  get type() {
-    return 'content' as const
-  }
-
-  render() {
-    return (
-      <div {...this.elementProps}>{this.children.map((c) => c.render())}</div>
-    )
-  }
-}
-
-const nodeClasses: Record<NodeType, EditorNode['constructor']> = {
-  content: ContentNode,
-  paragraph: ParagraphNode,
-  text: TextNode,
 }
 
 // Selection
@@ -818,8 +702,7 @@ class StateManager<T extends NodeType = NodeType> {
   }
 
   read(): JSONValue<T> {
-    // TODO: Remove type assertion after refactoring
-    return this._state.get(this.rootKey).jsonValue as JSONValue<T>
+    return getHandler(this.rootKey).read(this._state, this.rootKey)
   }
 
   get state(): ReadonlyState {
@@ -827,7 +710,8 @@ class StateManager<T extends NodeType = NodeType> {
   }
 
   render(): ReactNode {
-    return this._state.get(this.rootKey).render()
+    const rootEntry = this._state.getEntry(this.rootKey)
+    return getHandler(rootEntry.type).render(this._state, rootEntry)
   }
 
   dispatchCommand<C extends Command>(
@@ -981,13 +865,6 @@ class WritableState extends ReadonlyState {
 
     return `${this.lastKey}:${type}`
   }
-
-  get(arg: Key | Entry): EditorNode<NodeType, unknown, unknown> {
-    const key = isKey(arg) ? arg : arg.key
-
-    // @ts-expect-error TODO
-    return new nodeClasses[parseType(key)](this, key)
-  }
 }
 
 type InsertArg<T extends NodeType, R> = Omit<Entry<T>, 'key' | 'value'> & {
@@ -1003,7 +880,7 @@ interface EntryOf<T extends NodeType> {
   parent: ParentKey
   value: EntryValue<T>
 }
-type EntryValue<T extends NodeType> = NodeDescription[T]['value']
+type EntryValue<T extends NodeType> = NodeDescription[T]['entryValue']
 
 type ParentKey = Key | null
 type Key<T extends NodeType = NodeType> = `${number}:${T}`
@@ -1038,9 +915,9 @@ type Index<T extends NodeType> = NodeDescription[T]['index']
 type JSONValue<T extends NodeType = NodeType> = NodeDescription[T]['jsonValue']
 
 interface NodeDescription {
-  content: ContentNode
-  paragraph: ParagraphNode
-  text: TextNode
+  content: ArrayNode<'paragraph'>
+  paragraph: WrappedNode<'paragraph', 'text'>
+  text: PrimitiveNode<string>
 }
 
 /*interface ObjectNode<O extends Record<string, NodeType>> {
@@ -1049,3 +926,27 @@ interface NodeDescription {
   childType: O
   indexType: keyof O
 }*/
+
+interface ArrayNode<C extends NodeType> {
+  entryValue: Key<C>[]
+  jsonValue: Array<JSONValue<C>>
+  childType: C
+  index: number
+}
+
+interface WrappedNode<T extends NodeType, C extends NodeType> {
+  entryValue: Key<C>
+  jsonValue: { type: T; value: JSONValue<C> }
+  childType: C
+  index: WrappedNodeIndex
+}
+
+interface PrimitiveNode<C extends boolean | number | string> {
+  entryValue: C
+  jsonValue: C
+  childType: never
+  index: never
+}
+
+const WrappedNodeIndex = Symbol('WrappedNodeIndex')
+type WrappedNodeIndex = typeof WrappedNodeIndex

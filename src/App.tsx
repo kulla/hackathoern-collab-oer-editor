@@ -19,7 +19,11 @@ const initialContent: JSONValue<'root'> = [
   {
     type: 'multipleChoice',
     task: [{ type: 'paragraph', value: 'What is 2 + 2?' }],
-    answers: '4',
+    answers: [
+      { type: 'multipleChoiceAnswer', isCorrect: false, answer: '3' },
+      { type: 'multipleChoiceAnswer', isCorrect: true, answer: '4' },
+      { type: 'multipleChoiceAnswer', isCorrect: false, answer: '5' },
+    ],
   },
 ]
 
@@ -148,9 +152,9 @@ export default function App() {
   )
 }
 
-function createArrayHandler<T extends 'content' | 'root'>(
-  type: T,
-): NodeHandler<T> {
+function createArrayHandler<
+  T extends 'content' | 'root' | 'multipleChoiceAnswers',
+>(type: T): NodeHandler<T> {
   return {
     render(state, { key, value }) {
       return (
@@ -169,7 +173,7 @@ function createArrayHandler<T extends 'content' | 'root'>(
         createValue: (key) =>
           children.map(
             (child) => getHandler(child.type).insert(state, key, child).key,
-          ),
+          ) as EntryValue<T>,
       })
     },
     createEmpty(state, parent) {
@@ -181,7 +185,9 @@ function createArrayHandler<T extends 'content' | 'root'>(
     },
     read(state, key) {
       const value = state.getEntry(key).value
-      return value.map((childKey) => getHandler(childKey).read(state, childKey))
+      return value.map((childKey) =>
+        getHandler(childKey).read(state, childKey),
+      ) as JSONValue<T>
     },
     selectStart(state, { value }) {
       const firstChildKey = value[0]
@@ -313,8 +319,10 @@ function createArrayHandler<T extends 'content' | 'root'>(
           getHandler(currentChild).merge(state, currentChild, nextChild)
         }
 
-        state.update(key, (children) =>
-          children.filter((_, i) => i !== index + 1),
+        state.update(
+          key,
+          (children) =>
+            children.filter((_, i) => i !== index + 1) as EntryValue<T>,
         )
 
         return { success: true }
@@ -331,7 +339,10 @@ function createArrayHandler<T extends 'content' | 'root'>(
         if (previousChild.type === currentChild.type)
           getHandler(previousChild).merge(state, previousChild, currentChild)
 
-        state.update(key, (children) => children.filter((_, i) => i !== index))
+        state.update(
+          key,
+          (children) => children.filter((_, i) => i !== index) as EntryValue<T>,
+        )
 
         return { success: true }
       },
@@ -340,7 +351,7 @@ function createArrayHandler<T extends 'content' | 'root'>(
 }
 
 // TODO: Automatically check which types T can be
-function createPrimitiveHandler<T extends 'text'>({
+function createPrimitiveHandler<T extends 'text' | 'boolean'>({
   type,
   emptyValue,
 }: {
@@ -570,6 +581,78 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
   },
 }
 
+const MultipleChoiceAnswerHandler: NodeHandler<'multipleChoiceAnswer'> = {
+  insert(state, parent, { isCorrect, answer }) {
+    return state.insert({
+      type: 'multipleChoiceAnswer',
+      parent,
+      createValue: (key) => ({
+        isCorrect: BooleanHandler.insert(state, key, isCorrect).key,
+        answer: TextHandler.insert(state, key, answer).key,
+      }),
+    })
+  },
+  createEmpty(state, parent) {
+    return state.insert({
+      type: 'multipleChoiceAnswer',
+      parent,
+      createValue: (key) => ({
+        isCorrect: BooleanHandler.createEmpty(state, key).key,
+        answer: TextHandler.createEmpty(state, key).key,
+      }),
+    })
+  },
+  read(state, key) {
+    const { isCorrect, answer } = state.getEntry(key).value
+    return {
+      type: 'multipleChoiceAnswer',
+      isCorrect: BooleanHandler.read(state, isCorrect),
+      answer: TextHandler.read(state, answer),
+    }
+  },
+  render(state, { key, value }) {
+    const { isCorrect, answer } = value
+
+    return (
+      <li id={key} key={key} data-key={key}>
+        {BooleanHandler.render(state, state.getEntry(isCorrect))}
+        <p>Answer: {TextHandler.render(state, state.getEntry(answer))}</p>
+      </li>
+    )
+  },
+  selectStart(state, { value }) {
+    TextHandler.selectStart(state, state.getEntry(value.answer))
+  },
+  selectEnd(state, { value }) {
+    TextHandler.selectEnd(state, state.getEntry(value.answer))
+  },
+  split() {
+    return null
+  },
+  merge() {
+    return null
+  },
+  select(state, { key, value }, [part, ...next]) {
+    if (part === 'isCorrect' && next != null) {
+      const child = state.getEntry(value.isCorrect)
+
+      BooleanHandler.select(state, child, next as IndexPath<'boolean'>)
+    } else if (part === 'answer' && next != null) {
+      const child = state.getEntry(value.answer)
+
+      TextHandler.select(state, child, next as IndexPath<'text'>)
+    } else {
+      state.setCaret({ key })
+    }
+  },
+  getIndexWithin({ value }, childKey) {
+    if (childKey === value.isCorrect) return 'isCorrect'
+    if (childKey === value.answer) return 'answer'
+    throw new Error('Child not found')
+  },
+  onCommand: {},
+}
+
 const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
   insert(state, parent, { task, answers }) {
     return state.insert({
@@ -577,7 +660,7 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
       parent,
       createValue: (key) => ({
         task: ContentHandler.insert(state, key, task).key,
-        answers: TextHandler.insert(state, key, answers).key,
+        answers: MultipleChoiceAnswersHandler.insert(state, key, answers).key,
       }),
     })
   },
@@ -587,7 +670,7 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
       parent,
       createValue: (key) => ({
         task: ContentHandler.createEmpty(state, key).key,
-        answers: TextHandler.createEmpty(state, key).key,
+        answers: MultipleChoiceAnswersHandler.createEmpty(state, key).key,
       }),
     })
   },
@@ -596,7 +679,7 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
     return {
       type: 'multipleChoice',
       task: ContentHandler.read(state, task),
-      answers: TextHandler.read(state, answers),
+      answers: MultipleChoiceAnswersHandler.read(state, answers),
     }
   },
   render(state, { key, value }) {
@@ -606,7 +689,8 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
       <div id={key} key={key} data-key={key}>
         <h4>Task</h4>
         {ContentHandler.render(state, state.getEntry(task))}
-        <p>Answer: {TextHandler.render(state, state.getEntry(answers))}</p>
+        <h4>Answers</h4>
+        {MultipleChoiceAnswersHandler.render(state, state.getEntry(answers))}
       </div>
     )
   },
@@ -614,7 +698,7 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
     ContentHandler.selectStart(state, state.getEntry(value.task))
   },
   selectEnd(state, { value }) {
-    TextHandler.selectStart(state, state.getEntry(value.answers))
+    MultipleChoiceAnswersHandler.selectEnd(state, state.getEntry(value.answers))
   },
   split() {
     return null
@@ -630,7 +714,11 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
     } else if (part === 'answers' && next != null) {
       const child = state.getEntry(value.answers)
 
-      TextHandler.select(state, child, next as IndexPath<'text'>)
+      MultipleChoiceAnswersHandler.select(
+        state,
+        child,
+        next as IndexPath<'text'>,
+      )
     } else {
       state.setCaret({ key })
     }
@@ -645,6 +733,26 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
 
 const ContentHandler: NodeHandler<'content'> = createArrayHandler('content')
 const RootHandler: NodeHandler<'root'> = createArrayHandler('root')
+const BooleanHandler: NodeHandler<'boolean'> = {
+  ...createPrimitiveHandler({
+    type: 'boolean',
+    emptyValue: false,
+  }),
+  render(_, { key, value }) {
+    return (
+      <input
+        id={key}
+        key={key}
+        data-key={key}
+        type="checkbox"
+        checked={value}
+        readOnly
+        className="mr-2"
+      />
+    )
+  },
+}
+const MultipleChoiceAnswersHandler = createArrayHandler('multipleChoiceAnswers')
 
 const handlers: { [T in NodeType]: NodeHandler<T> } = {
   root: RootHandler,
@@ -652,6 +760,9 @@ const handlers: { [T in NodeType]: NodeHandler<T> } = {
   paragraph: ParagraphHandler,
   text: TextHandler,
   multipleChoice: MultipleChoiceHandler,
+  multipleChoiceAnswer: MultipleChoiceAnswerHandler,
+  multipleChoiceAnswers: MultipleChoiceAnswersHandler,
+  boolean: BooleanHandler,
 }
 
 function getHandler<T extends NodeType>(
@@ -1040,12 +1151,18 @@ type JSONValue<T extends NodeType = NodeType> = NodeDescription[T]['jsonValue']
 interface NodeDescription {
   multipleChoice: ObjectNode<
     'multipleChoice',
-    { task: 'content'; answers: 'text' }
+    { task: 'content'; answers: 'multipleChoiceAnswers' }
   >
   content: ArrayNode<'paragraph'>
   root: ArrayNode<'paragraph' | 'multipleChoice'>
   paragraph: WrappedNode<'paragraph', 'text'>
   text: PrimitiveNode<string>
+  multipleChoiceAnswers: ArrayNode<'multipleChoiceAnswer'>
+  multipleChoiceAnswer: ObjectNode<
+    'multipleChoiceAnswer',
+    { answer: 'text'; isCorrect: 'boolean' }
+  >
+  boolean: PrimitiveNode<boolean>
 }
 
 interface ObjectNode<T extends NodeType, O extends Record<string, NodeType>> {
@@ -1075,4 +1192,12 @@ interface PrimitiveNode<C extends boolean | number | string> {
 /*
  * Complete list of types used in the editor.
  */
-type NodeType = 'content' | 'paragraph' | 'text' | 'multipleChoice' | 'root'
+type NodeType =
+  | 'content'
+  | 'paragraph'
+  | 'text'
+  | 'multipleChoice'
+  | 'root'
+  | 'multipleChoiceAnswers'
+  | 'multipleChoiceAnswer'
+  | 'boolean'

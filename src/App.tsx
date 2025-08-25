@@ -317,86 +317,6 @@ const ContentHandler: NodeHandler<'content'> = {
   },
 }
 
-const ParagraphHandler: NodeHandler<'paragraph'> = {
-  insert(state, parent, { value: child, type }) {
-    return state.insert({
-      type,
-      parent,
-      createValue: (key) => TextHandler.insert(state, key, child).key,
-    })
-  },
-  createEmpty(state, parent) {
-    return state.insert({
-      type: 'paragraph',
-      parent,
-      createValue: (key) => TextHandler.createEmpty(state, key).key,
-    })
-  },
-  read(state, key) {
-    const { type, value } = state.getEntry(key)
-    return { type, value: TextHandler.read(state, value) }
-  },
-  render(state, { key, value }) {
-    return (
-      <p id={key} key={key} data-key={key}>
-        {TextHandler.render(state, state.getEntry(value))}
-      </p>
-    )
-  },
-  selectStart(state, { value }) {
-    TextHandler.selectStart(state, state.getEntry(value))
-  },
-  selectEnd(state, { value }) {
-    TextHandler.selectEnd(state, state.getEntry(value))
-  },
-  split(state, entry, [_, ...next], newParentKey) {
-    const { parent, value } = entry
-    if (next == null) return null
-
-    const child = state.getEntry(value)
-
-    const newEntry = state.insert<'paragraph'>({
-      type: 'paragraph',
-      parent: newParentKey ?? parent,
-      createValue: (newParent) => {
-        const split = getHandler(child.type).split(
-          state,
-          child,
-          next as IndexPath<typeof child.type>,
-          newParent,
-        )
-
-        if (split == null) return null
-
-        return split[1].key
-      },
-    })
-
-    if (newEntry == null) return null
-
-    return [entry, newEntry]
-  },
-  merge(state, { value }, { value: secondValue }) {
-    const child = state.getEntry(value)
-    const secondChild = state.getEntry(secondValue)
-
-    return TextHandler.merge(state, child, secondChild)
-  },
-  select(state, { key, value }, [_, ...next]) {
-    if (next == null) {
-      state.setCaret({ key })
-    } else {
-      const child = state.getEntry(value)
-
-      TextHandler.select(state, child, next as IndexPath<typeof child.type>)
-    }
-  },
-  getIndexWithin() {
-    return undefined as never
-  },
-  onCommand: {},
-}
-
 // TODO: Automatically check which types T can be
 function createPrimitiveHandler<T extends 'text'>({
   type,
@@ -404,7 +324,7 @@ function createPrimitiveHandler<T extends 'text'>({
 }: {
   type: T
   emptyValue: EntryValue<T>
-}) {
+}): NodeHandler<T> {
   return {
     insert(state, parent, value) {
       return state.insert({ type, parent, createValue: () => value })
@@ -434,7 +354,10 @@ function createPrimitiveHandler<T extends 'text'>({
       throw new Error('Primitive nodes cannot have children')
     },
     onCommand: {},
-  } as Omit<NodeHandler<T>, 'render'>
+    render() {
+      throw new Error('not implemented yet')
+    },
+  }
 }
 
 const TextHandler: NodeHandler<'text'> = {
@@ -523,6 +446,108 @@ const TextHandler: NodeHandler<'text'> = {
   },
 }
 
+function createWrappedHandler<W extends WrappedNodes>({
+  type,
+  childHandler,
+}: {
+  type: W['type']
+  childHandler: NodeHandler<W['childType']>
+}): NodeHandler<W['type']> {
+  return {
+    insert(state, parent, { value: child }) {
+      return state.insert({
+        type,
+        parent,
+        createValue: (key) => childHandler.insert(state, key, child).key,
+      })
+    },
+    createEmpty(state, parent) {
+      return state.insert({
+        type,
+        parent,
+        createValue: (key) => childHandler.createEmpty(state, key).key,
+      })
+    },
+    read(state, key) {
+      const { type, value } = state.getEntry(key)
+      return { type, value: childHandler.read(state, value) } as JSONValue<
+        W['type']
+      >
+    },
+    selectStart(state, { value }) {
+      childHandler.selectStart(state, state.getEntry(value))
+    },
+    selectEnd(state, { value }) {
+      childHandler.selectEnd(state, state.getEntry(value))
+    },
+    select(state, { key, value }, [_, ...next]) {
+      if (next == null) {
+        state.setCaret({ key })
+      } else {
+        const child = state.getEntry<W['childType']>(value)
+
+        childHandler.select(state, child, next as IndexPath<typeof child.type>)
+      }
+    },
+    getIndexWithin() {
+      return undefined as never
+    },
+    split(state, entry, [_, ...next], newParentKey) {
+      const { parent, value } = entry
+      if (next == null) return null
+
+      const child = state.getEntry<W['childType']>(value)
+
+      const newEntry = state.insert({
+        type,
+        parent: newParentKey ?? parent,
+        createValue: (newParent) => {
+          const split = childHandler.split(
+            state,
+            child,
+            next as IndexPath<typeof child.type>,
+            newParent,
+          )
+
+          if (split == null) return null
+
+          return split[1].key
+        },
+      })
+
+      if (newEntry == null) return null
+
+      return [entry, newEntry]
+    },
+    merge(state, { value }, { value: secondValue }) {
+      const child = state.getEntry<W['childType']>(value)
+      const secondChild = state.getEntry<W['childType']>(secondValue)
+
+      return childHandler.merge(state, child, secondChild)
+    },
+    onCommand: {},
+    render() {
+      throw new Error('not implemented yet')
+    },
+  }
+}
+
+type WrappedNodes = { type: 'paragraph'; childType: 'text' }
+
+const ParagraphHandler: NodeHandler<'paragraph'> = {
+  ...createWrappedHandler<{ type: 'paragraph'; childType: 'text' }>({
+    type: 'paragraph',
+    childHandler: TextHandler,
+  }),
+  render(state, { key, value }) {
+    return (
+      <p id={key} key={key} data-key={key}>
+        {TextHandler.render(state, state.getEntry(value))}
+      </p>
+    )
+  },
+}
+
 const handlers: { [T in NodeType]: NodeHandler<T> } = {
   content: ContentHandler,
   paragraph: ParagraphHandler,
@@ -531,14 +556,15 @@ const handlers: { [T in NodeType]: NodeHandler<T> } = {
 
 function getHandler<T extends NodeType>(
   arg: T | Key<T> | Entry<T>,
-): NodeHandler<T> {
+): NodeHandlerOf<T> {
   // TODO: Remove type assertion when possible
   const type: T = isType(arg) ? arg : isKey(arg) ? parseType(arg) : arg.type
 
   return handlers[type]
 }
 
-interface NodeHandler<T extends NodeType = NodeType> {
+type NodeHandler<T extends NodeType> = { [S in T]: NodeHandlerOf<S> }[T]
+interface NodeHandlerOf<T extends NodeType> {
   insert(state: WritableState, parent: ParentKey, node: JSONValue<T>): Entry<T>
   createEmpty(state: WritableState, parent: ParentKey): Entry<T>
 
@@ -931,7 +957,7 @@ interface ArrayNode<C extends NodeType> {
 
 interface WrappedNode<T extends NodeType, C extends NodeType> {
   entryValue: Key<C>
-  jsonValue: { type: T; value: JSONValue<C> }
+  jsonValue: { [S in T]: { type: T; value: JSONValue<C> } }[T]
   index: never
 }
 

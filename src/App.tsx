@@ -16,6 +16,7 @@ import { DebugPanel } from './components/debug-panel'
 const initialContent: JSONValue<'content'> = [
   { type: 'paragraph', value: 'Welcome this is an editor example.' },
   { type: 'paragraph', value: 'Hello World' },
+  { task: 'What is 2 + 2?', answers: '4' },
 ]
 
 export default function App() {
@@ -151,7 +152,11 @@ const ContentHandler: NodeHandler<'content'> = {
       type: 'content',
       parent,
       createValue: (key) =>
-        children.map((child) => ParagraphHandler.insert(state, key, child).key),
+        children.map((child) =>
+          'task' in child
+            ? MultipleChoiceHandler.insert(state, key, child).key
+            : ParagraphHandler.insert(state, key, child).key,
+        ),
     })
   },
   createEmpty(state, parent) {
@@ -163,32 +168,39 @@ const ContentHandler: NodeHandler<'content'> = {
   },
   read(state, key) {
     const value = state.getEntry(key).value
-    return value.map((childKey) => ParagraphHandler.read(state, childKey))
+    return value.map((childKey) =>
+      isKeyType('multipleChoice', childKey)
+        ? MultipleChoiceHandler.read(state, childKey)
+        : ParagraphHandler.read(state, childKey),
+    )
   },
   render(state, { key, value }) {
     return (
       <div id={key} key={key} data-key={key}>
-        {value.map((childKey) =>
-          ParagraphHandler.render(state, state.getEntry(childKey)),
-        )}
+        {value.map((childKey) => {
+          const child = state.getEntry(childKey)
+          return child.type === 'multipleChoice'
+            ? MultipleChoiceHandler.render(state, child)
+            : ParagraphHandler.render(state, child)
+        })}
       </div>
     )
   },
   selectStart(state, { value }) {
     const firstChildKey = value[0]
     if (firstChildKey == null) return
-    ParagraphHandler.selectStart(state, state.getEntry(firstChildKey))
+    getHandler(firstChildKey).selectStart(state, state.getEntry(firstChildKey))
   },
   selectEnd(state, { value }) {
     const lastChildKey = value[value.length - 1]
     if (lastChildKey == null) return
-    ParagraphHandler.selectStart(state, state.getEntry(lastChildKey))
+    getHandler(lastChildKey).selectStart(state, state.getEntry(lastChildKey))
   },
   split() {
-    throw new Error('not implemented yet')
+    return null
   },
   merge() {
-    throw new Error('not implemented yet')
+    return null
   },
   select() {
     throw new Error('not implemented yet')
@@ -210,7 +222,7 @@ const ContentHandler: NodeHandler<'content'> = {
 
       const left =
         startNext != null
-          ? ParagraphHandler.split(
+          ? getHandler(value[start]).split(
               state,
               state.getEntry(value[start]),
               startNext as IndexPath<'paragraph'>,
@@ -218,14 +230,15 @@ const ContentHandler: NodeHandler<'content'> = {
           : null
       const right =
         endNext != null
-          ? ParagraphHandler.split(
+          ? getHandler(value[end]).split(
               state,
               state.getEntry(value[end]),
               endNext as IndexPath<'paragraph'>,
             )?.[1]
           : null
 
-      if (left && right) ParagraphHandler.merge(state, left, right)
+      if (left && right && left.type === right.type)
+        getHandler(left).merge(state, left, right)
 
       state.update(key, (children) => {
         const newChildren = [
@@ -238,13 +251,13 @@ const ContentHandler: NodeHandler<'content'> = {
           const newEntry = state.getEntry(newChildren[start])
 
           if (startNext != null) {
-            ParagraphHandler.select(
+            getHandler(newEntry).select(
               state,
               newEntry,
               startNext as IndexPath<'paragraph'>,
             )
           } else {
-            ParagraphHandler.selectStart(state, newEntry)
+            getHandler(newEntry).selectStart(state, newEntry)
           }
 
           return newChildren
@@ -262,7 +275,7 @@ const ContentHandler: NodeHandler<'content'> = {
       if (index == null || index !== endIndex) return null
       const newChild = (() => {
         if (next != null) {
-          const split = ParagraphHandler.split(
+          const split = getHandler(value[index]).split(
             state,
             state.getEntry(value[index]),
             next as IndexPath<'paragraph'>,
@@ -275,7 +288,7 @@ const ContentHandler: NodeHandler<'content'> = {
         return ParagraphHandler.createEmpty(state, key)
       })()
 
-      ParagraphHandler.selectStart(state, newChild)
+      getHandler(newChild).selectStart(state, newChild)
 
       state.update(key, (children) => [
         ...children.slice(0, index + 1),
@@ -292,7 +305,9 @@ const ContentHandler: NodeHandler<'content'> = {
       const currentChild = state.getEntry(value[index])
       const nextChild = state.getEntry(value[index + 1])
 
-      ParagraphHandler.merge(state, currentChild, nextChild)
+      if (currentChild.type === nextChild.type) {
+        getHandler(currentChild).merge(state, currentChild, nextChild)
+      }
 
       state.update(key, (children) =>
         children.filter((_, i) => i !== index + 1),
@@ -307,8 +322,10 @@ const ContentHandler: NodeHandler<'content'> = {
       const currentChild = state.getEntry(value[index])
       const previousChild = state.getEntry(value[index - 1])
 
-      ParagraphHandler.selectEnd(state, previousChild)
-      ParagraphHandler.merge(state, previousChild, currentChild)
+      getHandler(previousChild).selectEnd(state, previousChild)
+
+      if (previousChild.type === currentChild.type)
+        getHandler(previousChild).merge(state, previousChild, currentChild)
 
       state.update(key, (children) => children.filter((_, i) => i !== index))
 
@@ -548,10 +565,199 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
   },
 }
 
+const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
+  insert(state, parent, { task, answers }) {
+    return state.insert({
+      type: 'multipleChoice',
+      parent,
+      createValue: (key) => ({
+        task: TextHandler.insert(state, key, task).key,
+        answers: TextHandler.insert(state, key, answers).key,
+      }),
+    })
+  },
+  createEmpty(state, parent) {
+    return state.insert({
+      type: 'multipleChoice',
+      parent,
+      createValue: (key) => ({
+        task: TextHandler.createEmpty(state, key).key,
+        answers: TextHandler.createEmpty(state, key).key,
+      }),
+    })
+  },
+  read(state, key) {
+    const { task, answers } = state.getEntry(key).value
+    return {
+      task: TextHandler.read(state, task),
+      answers: TextHandler.read(state, answers),
+    }
+  },
+  render(state, { key, value }) {
+    const { task, answers } = value
+
+    return (
+      <div id={key} key={key} data-key={key}>
+        <p>Task: {TextHandler.render(state, state.getEntry(task))}</p>
+        <p>Answer: {TextHandler.render(state, state.getEntry(answers))}</p>
+      </div>
+    )
+  },
+  selectStart(state, { value }) {
+    TextHandler.selectStart(state, state.getEntry(value.task))
+  },
+  selectEnd(state, { value }) {
+    TextHandler.selectStart(state, state.getEntry(value.answers))
+  },
+  split() {
+    return null
+  },
+  merge() {
+    return null
+  },
+  select(state, { key, value }, [part, ...next]) {
+    if (part === 'task' && next != null) {
+      const child = state.getEntry(value.task)
+
+      TextHandler.select(state, child, next as IndexPath<'text'>)
+    } else if (part === 'answers' && next != null) {
+      const child = state.getEntry(value.answers)
+
+      TextHandler.select(state, child, next as IndexPath<'text'>)
+    } else {
+      state.setCaret({ key })
+    }
+  },
+  getIndexWithin({ value }, childKey) {
+    if (childKey === value.task) return 'task'
+    if (childKey === value.answers) return 'answers'
+    throw new Error('Child not found')
+  },
+  onCommand: {
+    /*deleteRange(
+      state,
+      { key, value },
+      [startIndex, ...startNext],
+      [endIndex, ...endNext],
+    ) {
+      const [start, end] = [startIndex ?? 0, endIndex ?? value.length]
+
+      if (start === end) return null
+
+      const left =
+        startNext != null
+          ? ParagraphHandler.split(
+              state,
+              state.getEntry(value[start]),
+              startNext as IndexPath<'paragraph'>,
+            )?.[0]
+          : null
+      const right =
+        endNext != null
+          ? ParagraphHandler.split(
+              state,
+              state.getEntry(value[end]),
+              endNext as IndexPath<'paragraph'>,
+            )?.[1]
+          : null
+
+      if (left && right) ParagraphHandler.merge(state, left, right)
+
+      state.update(key, (children) => {
+        const newChildren = [
+          ...children.slice(0, start),
+          ...(left != null ? [left.key] : []),
+          ...children.slice(end + 1),
+        ]
+
+        if (newChildren.length > 0) {
+          const newEntry = state.getEntry(newChildren[start])
+
+          if (startNext != null) {
+            ParagraphHandler.select(
+              state,
+              newEntry,
+              startNext as IndexPath<'paragraph'>,
+            )
+          } else {
+            ParagraphHandler.selectStart(state, newEntry)
+          }
+
+          return newChildren
+        }
+
+        const newChild = ParagraphHandler.createEmpty(state, key)
+        ParagraphHandler.selectStart(state, newChild)
+
+        return [newChild.key]
+      })
+
+      return { success: true }
+    },
+    insertNewElement(state, { key, value }, [index, ...next], [endIndex]) {
+      if (index == null || index !== endIndex) return null
+      const newChild = (() => {
+        if (next != null) {
+          const split = ParagraphHandler.split(
+            state,
+            state.getEntry(value[index]),
+            next as IndexPath<'paragraph'>,
+            key,
+          )
+
+          if (split != null) return split[1]
+        }
+
+        return ParagraphHandler.createEmpty(state, key)
+      })()
+
+      ParagraphHandler.selectStart(state, newChild)
+
+      state.update(key, (children) => [
+        ...children.slice(0, index + 1),
+        newChild.key,
+        ...children.slice(index + 1),
+      ])
+
+      return { success: true }
+    },
+    deleteForward(state, { key, value }, [index], [endIndex]) {
+      if (index == null || index !== endIndex) return null
+      if (value.length <= 1 || index >= value.length) return null
+
+      const currentChild = state.getEntry(value[index])
+      const nextChild = state.getEntry(value[index + 1])
+
+      ParagraphHandler.merge(state, currentChild, nextChild)
+
+      state.update(key, (children) =>
+        children.filter((_, i) => i !== index + 1),
+      )
+
+      return { success: true }
+    },
+    deleteBackward(state, { key, value }, [index], [endIndex]) {
+      if (index == null || index !== endIndex) return null
+      if (value.length <= 1 || index <= 0) return null
+
+      const currentChild = state.getEntry(value[index])
+      const previousChild = state.getEntry(value[index - 1])
+
+      ParagraphHandler.selectEnd(state, previousChild)
+      ParagraphHandler.merge(state, previousChild, currentChild)
+
+      state.update(key, (children) => children.filter((_, i) => i !== index))
+
+      return { success: true }
+    },*/
+  },
+}
+
 const handlers: { [T in NodeType]: NodeHandler<T> } = {
   content: ContentHandler,
   paragraph: ParagraphHandler,
   text: TextHandler,
+  multipleChoice: MultipleChoiceHandler,
 }
 
 function getHandler<T extends NodeType>(
@@ -938,16 +1144,17 @@ type Index<T extends NodeType = NodeType> = T extends 'text'
 type JSONValue<T extends NodeType = NodeType> = NodeDescription[T]['jsonValue']
 
 interface NodeDescription {
-  content: ArrayNode<'paragraph'>
+  multipleChoice: ObjectNode<{ task: 'text'; answers: 'text' }>
+  content: ArrayNode<'paragraph' | 'multipleChoice'>
   paragraph: WrappedNode<'paragraph', 'text'>
   text: PrimitiveNode<string>
 }
 
-/*interface ObjectNode<O extends Record<string, NodeType>> {
+interface ObjectNode<O extends Record<string, NodeType>> {
   entryValue: { [K in keyof O]: Key<O[K]> }
   jsonValue: { [K in keyof O]: JSONValue<O[K]> }
   index: keyof O
-}*/
+}
 
 interface ArrayNode<C extends NodeType> {
   entryValue: Key<C>[]
@@ -970,4 +1177,4 @@ interface PrimitiveNode<C extends boolean | number | string> {
 /*
  * Complete list of types used in the editor.
  */
-type NodeType = 'content' | 'paragraph' | 'text'
+type NodeType = 'content' | 'paragraph' | 'text' | 'multipleChoice'

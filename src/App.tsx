@@ -12,7 +12,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
 import { invariant, isEqual, takeWhile, zip } from 'es-toolkit'
 import { DebugPanel } from './components/debug-panel'
-import type { NodeType } from './nodes/types'
 
 const initialContent: JSONValue<'content'> = [
   { type: 'paragraph', value: 'Welcome this is an editor example.' },
@@ -941,3 +940,8 @@ interface PrimitiveNode<C extends boolean | number | string> {
   jsonValue: C
   index: never
 }
+
+/*
+ * Complete list of types used in the editor.
+ */
+type NodeType = 'content' | 'paragraph' | 'text'

@@ -30,8 +30,6 @@ const initialContent: JSONValue<'root'> = [
 ]
 
 export default function App() {
-  console.log('Rerender')
-
   const { manager } = useStateManager('root', initialContent)
 
   const handleKeyDown = useCallback(
@@ -160,12 +158,12 @@ function createArrayHandler<
   T extends 'content' | 'root' | 'multipleChoiceAnswers',
 >(type: T): NodeHandler<T> {
   return {
-    render(state, { key, value }) {
+    render(manager, { key, value }) {
       return (
         <div id={key} key={key} data-key={key}>
           {value.map((childKey) => {
-            const child = state.getEntry(childKey)
-            return getHandler(child).render(state, child)
+            const child = manager.state.getEntry(childKey)
+            return getHandler(child).render(manager, child)
           })}
         </div>
       )
@@ -576,10 +574,10 @@ const ParagraphHandler: NodeHandler<'paragraph'> = {
     type: 'paragraph',
     childHandler: TextHandler,
   }),
-  render(state, { key, value }) {
+  render(manager, { key, value }) {
     return (
       <p id={key} key={key} data-key={key}>
-        {TextHandler.render(state, state.getEntry(value))}
+        {TextHandler.render(manager, manager.state.getEntry(value))}
       </p>
     )
   },
@@ -614,13 +612,13 @@ const MultipleChoiceAnswerHandler: NodeHandler<'multipleChoiceAnswer'> = {
       answer: TextHandler.read(state, answer),
     }
   },
-  render(state, { key, value }) {
+  render(manager, { key, value }) {
     const { isCorrect, answer } = value
 
     return (
       <div id={key} key={key} data-key={key}>
-        {BooleanHandler.render(state, state.getEntry(isCorrect))}
-        {TextHandler.render(state, state.getEntry(answer))}
+        {BooleanHandler.render(manager, manager.state.getEntry(isCorrect))}
+        {TextHandler.render(manager, manager.state.getEntry(answer))}
       </div>
     )
   },
@@ -686,7 +684,7 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
       answers: MultipleChoiceAnswersHandler.read(state, answers),
     }
   },
-  render(state, { key, value }) {
+  render(manager, { key, value }) {
     const { task, answers } = value
 
     return (
@@ -697,9 +695,9 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
         className="px-4 bg-lime-900 rounded-lg mb-4"
       >
         <h4>Tasks</h4>
-        {ContentHandler.render(state, state.getEntry(task))}
+        {ContentHandler.render(manager, manager.state.getEntry(task))}
         <h4>Answers</h4>
-        {MultipleChoiceAnswersHandler.render(state, state.getEntry(answers))}
+        {MultipleChoiceAnswersHandler.render(manager, manager.state.getEntry(answers))}
       </div>
     )
   },
@@ -747,7 +745,7 @@ const BooleanHandler: NodeHandler<'boolean'> = {
     type: 'boolean',
     emptyValue: false,
   }),
-  render(_, { key, value }) {
+  render(manager, { key, value }) {
     return (
       <input
         id={key}
@@ -755,8 +753,12 @@ const BooleanHandler: NodeHandler<'boolean'> = {
         data-key={key}
         type="checkbox"
         checked={value}
-        readOnly
         className="mr-2"
+        onChange={() => {
+            manager.update(state => {
+                state.update(key, !value)
+            })
+        }}
       />
     )
   },
@@ -789,7 +791,7 @@ interface NodeHandlerOf<T extends NodeType> {
   createEmpty(state: WritableState, parent: ParentKey): Entry<T>
 
   read(state: ReadonlyState, key: Key<T>): JSONValue<T>
-  render(state: ReadonlyState, node: Entry<T>): ReactNode
+  render(manager: StateManager, node: Entry<T>): ReactNode
   getIndexWithin(entry: Entry<T>, child: Key): Index<T>
 
   select(state: WritableState, node: Entry<T>, at: IndexPath<T>): void
@@ -956,7 +958,7 @@ class StateManager<T extends NodeType = NodeType> {
 
   render(): ReactNode {
     const rootEntry = this._state.getEntry(this.rootKey)
-    return getHandler(rootEntry.type).render(this._state, rootEntry)
+    return getHandler(rootEntry.type).render(this, rootEntry)
   }
 
   dispatchCommand<C extends Command>(
@@ -1043,7 +1045,7 @@ const doc: { ymap?: Y.Map<unknown> } = {}
 function getEntries() {
   if (doc.ymap == null) {
     const ydoc = new Y.Doc()
-    new WebrtcProvider('editor', ydoc, { signaling: ['wss://localhost:4444'] })
+    new WebrtcProvider('editor', ydoc, { signaling: ['ws://localhost:32768'] })
     doc.ymap = ydoc.getMap('entries')
   }
 

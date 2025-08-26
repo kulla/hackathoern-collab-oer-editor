@@ -155,8 +155,8 @@ export default function App() {
 }
 
 function createArrayHandler<
-  T extends 'content' | 'root' | 'multipleChoiceAnswers',
->(type: T): NodeHandler<T> {
+    A extends ArrayNodes,
+>({type,childHandler}: A): NodeHandler<A["type"]> {
   return {
     render(manager, { key, value }) {
       return (
@@ -175,21 +175,22 @@ function createArrayHandler<
         createValue: (key) =>
           children.map(
             (child) => getHandler(child.type).insert(state, key, child).key,
-          ) as EntryValue<T>,
+          ) as EntryValue<A["type"]>,
       })
     },
     createEmpty(state, parent) {
-      return state.insert({
+        // @ts-expect-error
+        return state.insert({
         type,
         parent,
-        createValue: (key) => [ParagraphHandler.createEmpty(state, key).key],
+        createValue: (key) => [childHandler.createEmpty(state, key).key],
       })
     },
     read(state, key) {
       const value = state.getEntry(key).value
       return value.map((childKey) =>
         getHandler(childKey).read(state, childKey),
-      ) as JSONValue<T>
+      ) as JSONValue<A["type"]>
     },
     selectStart(state, { value }) {
       const firstChildKey = value[0]
@@ -215,7 +216,7 @@ function createArrayHandler<
     },
     getIndexWithin({ value }, childKey) {
       // TODO: Remove the 'as' cast when possible
-      return (value as Key[]).indexOf(childKey) as Index<T>
+      return (value as Key[]).indexOf(childKey) as Index<A["type"]>
     },
     onCommand: {
       deleteRange(
@@ -268,13 +269,13 @@ function createArrayHandler<
               getHandler(newEntry).selectStart(state, newEntry)
             }
 
-            return newChildren as EntryValue<T>
+            return newChildren as EntryValue<A["type"]>
           }
 
           const newChild = ParagraphHandler.createEmpty(state, key)
           ParagraphHandler.selectStart(state, newChild)
 
-          return [newChild.key] as EntryValue<T>
+          return [newChild.key] as EntryValue<A["type"]>
         })
 
         return { success: true }
@@ -293,7 +294,7 @@ function createArrayHandler<
             if (split != null) return split[1]
           }
 
-          return ParagraphHandler.createEmpty(state, key)
+          return childHandler.createEmpty(state, key)
         })()
 
         getHandler(newChild).selectStart(state, newChild)
@@ -305,7 +306,7 @@ function createArrayHandler<
               ...children.slice(0, index + 1),
               newChild.key,
               ...children.slice(index + 1),
-            ] as EntryValue<T>,
+            ] as EntryValue<A["type"]>,
         )
 
         return { success: true }
@@ -324,7 +325,7 @@ function createArrayHandler<
         state.update(
           key,
           (children) =>
-            children.filter((_, i) => i !== index + 1) as EntryValue<T>,
+            children.filter((_, i) => i !== index + 1) as EntryValue<A["type"]>,
         )
 
         return { success: true }
@@ -343,7 +344,7 @@ function createArrayHandler<
 
         state.update(
           key,
-          (children) => children.filter((_, i) => i !== index) as EntryValue<T>,
+          (children) => children.filter((_, i) => i !== index) as EntryValue<A["type"]>,
         )
 
         return { success: true }
@@ -351,6 +352,8 @@ function createArrayHandler<
     },
   }
 }
+
+type ArrayNodes = { type: "root"; childHandler: NodeHandler<"paragraph"> } | {type: "content"; childHandler: NodeHandler<"paragraph">} | {type: "multipleChoiceAnswers"; childHandler: NodeHandler<"multipleChoiceAnswer">}
 
 // TODO: Automatically check which types T can be
 function createPrimitiveHandler<T extends 'text' | 'boolean'>({
@@ -746,8 +749,8 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
   },
 }
 
-const ContentHandler: NodeHandler<'content'> = createArrayHandler('content')
-const RootHandler: NodeHandler<'root'> = createArrayHandler('root')
+const ContentHandler: NodeHandler<'content'> = createArrayHandler({type: 'content', childHandler: ParagraphHandler})
+const RootHandler: NodeHandler<'root'> = createArrayHandler({type: 'root', childHandler: ParagraphHandler})
 const BooleanHandler: NodeHandler<'boolean'> = {
   ...createPrimitiveHandler({
     type: 'boolean',
@@ -771,7 +774,7 @@ const BooleanHandler: NodeHandler<'boolean'> = {
     )
   },
 }
-const MultipleChoiceAnswersHandler = createArrayHandler('multipleChoiceAnswers')
+const MultipleChoiceAnswersHandler = createArrayHandler({type: 'multipleChoiceAnswers', childHandler: MultipleChoiceAnswerHandler})
 
 const handlers: { [T in NodeType]: NodeHandler<T> } = {
   root: RootHandler,

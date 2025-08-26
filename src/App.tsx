@@ -11,8 +11,8 @@ import {
 import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
 import { invariant, isEqual, takeWhile, zip } from 'es-toolkit'
-import * as Y from 'yjs'
 import { WebrtcProvider } from 'y-webrtc'
+import * as Y from 'yjs'
 import { DebugPanel } from './components/debug-panel'
 
 const initialContent: JSONValue<'root'> = [
@@ -110,10 +110,24 @@ export default function App() {
   return (
     <main className="prose p-10">
       <h1>Editor:</h1>
-        <div className="flex flex-row gap-2 mb-4">
-            <button onClick={() => {manager.dispatchCommand(Command.AddMultipleChoice)}} className={'btn btn-outline btn-primary'}>Add Multiple Choice</button>
-            <button onClick={() => {manager.dispatchCommand(Command.AddParagraph)}} className={'btn btn-outline btn-primary'}>Add Paragraph</button>
-        </div>
+      <div className="flex flex-row gap-2 mb-4">
+        <button
+          onClick={() => {
+            manager.dispatchCommand(Command.AddMultipleChoice)
+          }}
+          className={'btn btn-outline btn-primary'}
+        >
+          Add Multiple Choice
+        </button>
+        <button
+          onClick={() => {
+            manager.dispatchCommand(Command.AddParagraph)
+          }}
+          className={'btn btn-outline btn-primary'}
+        >
+          Add Paragraph
+        </button>
+      </div>
       <article
         className="rounded-xl border-2 px-4 outline-none max-w-3xl"
         contentEditable
@@ -158,9 +172,10 @@ export default function App() {
   )
 }
 
-function createArrayHandler<
-    A extends ArrayNodes,
->({type,childHandler}: A): NodeHandler<A["type"]> {
+function createArrayHandler<A extends ArrayNodes>({
+  type,
+  childHandler,
+}: A): NodeHandler<A['type']> {
   return {
     render(manager, { key, value }) {
       return (
@@ -179,12 +194,12 @@ function createArrayHandler<
         createValue: (key) =>
           children.map(
             (child) => getHandler(child.type).insert(state, key, child).key,
-          ) as EntryValue<A["type"]>,
+          ) as EntryValue<A['type']>,
       })
     },
     createEmpty(state, parent) {
-        // @ts-expect-error
-        return state.insert({
+      // @ts-expect-error
+      return state.insert({
         type,
         parent,
         createValue: (key) => [childHandler.createEmpty(state, key).key],
@@ -194,7 +209,7 @@ function createArrayHandler<
       const value = state.getEntry(key).value
       return value.map((childKey) =>
         getHandler(childKey).read(state, childKey),
-      ) as JSONValue<A["type"]>
+      ) as JSONValue<A['type']>
     },
     selectStart(state, { value }) {
       const firstChildKey = value[0]
@@ -220,7 +235,7 @@ function createArrayHandler<
     },
     getIndexWithin({ value }, childKey) {
       // TODO: Remove the 'as' cast when possible
-      return (value as Key[]).indexOf(childKey) as Index<A["type"]>
+      return (value as Key[]).indexOf(childKey) as Index<A['type']>
     },
     onCommand: {
       deleteRange(
@@ -273,13 +288,13 @@ function createArrayHandler<
               getHandler(newEntry).selectStart(state, newEntry)
             }
 
-            return newChildren as EntryValue<A["type"]>
+            return newChildren as EntryValue<A['type']>
           }
 
           const newChild = ParagraphHandler.createEmpty(state, key)
           ParagraphHandler.selectStart(state, newChild)
 
-          return [newChild.key] as EntryValue<A["type"]>
+          return [newChild.key] as EntryValue<A['type']>
         })
 
         return { success: true }
@@ -310,7 +325,7 @@ function createArrayHandler<
               ...children.slice(0, index + 1),
               newChild.key,
               ...children.slice(index + 1),
-            ] as EntryValue<A["type"]>,
+            ] as EntryValue<A['type']>,
         )
 
         return { success: true }
@@ -329,7 +344,7 @@ function createArrayHandler<
         state.update(
           key,
           (children) =>
-            children.filter((_, i) => i !== index + 1) as EntryValue<A["type"]>,
+            children.filter((_, i) => i !== index + 1) as EntryValue<A['type']>,
         )
 
         return { success: true }
@@ -348,7 +363,8 @@ function createArrayHandler<
 
         state.update(
           key,
-          (children) => children.filter((_, i) => i !== index) as EntryValue<A["type"]>,
+          (children) =>
+            children.filter((_, i) => i !== index) as EntryValue<A['type']>,
         )
 
         return { success: true }
@@ -357,7 +373,13 @@ function createArrayHandler<
   }
 }
 
-type ArrayNodes = { type: "root"; childHandler: NodeHandler<"paragraph"> } | {type: "content"; childHandler: NodeHandler<"paragraph">} | {type: "multipleChoiceAnswers"; childHandler: NodeHandler<"multipleChoiceAnswer">}
+type ArrayNodes =
+  | { type: 'root'; childHandler: NodeHandler<'paragraph'> }
+  | { type: 'content'; childHandler: NodeHandler<'paragraph'> }
+  | {
+      type: 'multipleChoiceAnswers'
+      childHandler: NodeHandler<'multipleChoiceAnswer'>
+    }
 
 // TODO: Automatically check which types T can be
 function createPrimitiveHandler<T extends 'text' | 'boolean'>({
@@ -704,7 +726,10 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
         <h4>Tasks</h4>
         {ContentHandler.render(manager, manager.state.getEntry(task))}
         <h4>Answers</h4>
-        {MultipleChoiceAnswersHandler.render(manager, manager.state.getEntry(answers))}
+        {MultipleChoiceAnswersHandler.render(
+          manager,
+          manager.state.getEntry(answers),
+        )}
       </div>
     )
   },
@@ -743,24 +768,29 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
     throw new Error('Child not found')
   },
   onCommand: {
-      deleteBackward() {
-        return { success: true }
-      },
-      deleteForward() {
-          return {success: true}
-      }
-
+    deleteBackward() {
+      return { success: true }
+    },
+    deleteForward() {
+      return { success: true }
+    },
   },
 }
 
-const ContentHandler: NodeHandler<'content'> = createArrayHandler({type: 'content', childHandler: ParagraphHandler})
-const RootHandler: NodeHandler<'root'> = createArrayHandler({type: 'root', childHandler: ParagraphHandler})
+const ContentHandler: NodeHandler<'content'> = createArrayHandler({
+  type: 'content',
+  childHandler: ParagraphHandler,
+})
+const RootHandler: NodeHandler<'root'> = createArrayHandler({
+  type: 'root',
+  childHandler: ParagraphHandler,
+})
 const BooleanHandler: NodeHandler<'boolean'> = {
   ...createPrimitiveHandler({
     type: 'boolean',
     emptyValue: false,
   }),
-  render(manager: StateManager<"root">, { key, value }) {
+  render(manager: StateManager<'root'>, { key, value }) {
     return (
       <input
         id={key}
@@ -770,15 +800,18 @@ const BooleanHandler: NodeHandler<'boolean'> = {
         checked={value}
         className="mr-2"
         onChange={() => {
-            manager.update(state => {
-                state.update(key, !value)
-            })
+          manager.update((state) => {
+            state.update(key, !value)
+          })
         }}
       />
     )
   },
 }
-const MultipleChoiceAnswersHandler = createArrayHandler({type: 'multipleChoiceAnswers', childHandler: MultipleChoiceAnswerHandler})
+const MultipleChoiceAnswersHandler = createArrayHandler({
+  type: 'multipleChoiceAnswers',
+  childHandler: MultipleChoiceAnswerHandler,
+})
 
 const handlers: { [T in NodeType]: NodeHandler<T> } = {
   root: RootHandler,
@@ -806,7 +839,7 @@ interface NodeHandlerOf<T extends NodeType> {
   createEmpty(state: WritableState, parent: ParentKey): Entry<T>
 
   read(state: ReadonlyState, key: Key<T>): JSONValue<T>
-  render(manager: StateManager<"root">, node: Entry<T>): ReactNode
+  render(manager: StateManager<'root'>, node: Entry<T>): ReactNode
   getIndexWithin(entry: Entry<T>, child: Key): Index<T>
 
   select(state: WritableState, node: Entry<T>, at: IndexPath<T>): void
@@ -897,7 +930,7 @@ type CommandPayload<O extends Command> = O extends Command.InsertText
 
 // State manager
 
-function useStateManager<T extends "root">(type: T, initial: JSONValue<T>) {
+function useStateManager<T extends 'root'>(type: T, initial: JSONValue<T>) {
   const manager = useRef(new StateManager(type, initial)).current
   const lastReturn = useRef({ manager, updateCount: manager.state.updateCount })
 
@@ -921,7 +954,7 @@ function useStateManager<T extends "root">(type: T, initial: JSONValue<T>) {
   )
 }
 
-class StateManager<T extends "root"> {
+class StateManager<T extends 'root'> {
   private readonly _state = new WritableState()
   private readonly rootKey: Key<T>
   private updateCallDepth = 0
@@ -983,22 +1016,43 @@ class StateManager<T extends "root"> {
     ...payload: CommandPayload<C>
   ): boolean {
     return this.update((state) => {
-        if (command === Command.AddParagraph || command === Command.AddMultipleChoice) {
-            this.update((state) => {
-                const newElement : JSONValue<"paragraph" | "multipleChoice"> = command === Command.AddParagraph ? {type: "paragraph", value: "..."}
-                    : {
-                            type: 'multipleChoice',
-                            task: [{ type: 'paragraph', value: 'What is 2 + 2?' }],
-                            answers: [
-                                { type: 'multipleChoiceAnswer', isCorrect: false, answer: '3' },
-                                { type: 'multipleChoiceAnswer', isCorrect: true, answer: '4' },
-                                { type: 'multipleChoiceAnswer', isCorrect: false, answer: '5' },
-                            ],
-                        }
-                const key = getHandler(newElement.type).insert(state, this.rootKey, newElement).key
-                state.update(this.rootKey, (prev) => [...prev, key])
-            })
-        }
+      if (
+        command === Command.AddParagraph ||
+        command === Command.AddMultipleChoice
+      ) {
+        this.update((state) => {
+          const newElement: JSONValue<'paragraph' | 'multipleChoice'> =
+            command === Command.AddParagraph
+              ? { type: 'paragraph', value: '...' }
+              : {
+                  type: 'multipleChoice',
+                  task: [{ type: 'paragraph', value: 'What is 2 + 2?' }],
+                  answers: [
+                    {
+                      type: 'multipleChoiceAnswer',
+                      isCorrect: false,
+                      answer: '3',
+                    },
+                    {
+                      type: 'multipleChoiceAnswer',
+                      isCorrect: true,
+                      answer: '4',
+                    },
+                    {
+                      type: 'multipleChoiceAnswer',
+                      isCorrect: false,
+                      answer: '5',
+                    },
+                  ],
+                }
+          const key = getHandler(newElement.type).insert(
+            state,
+            this.rootKey,
+            newElement,
+          ).key
+          state.update(this.rootKey, (prev) => [...prev, key])
+        })
+      }
       if (state.cursor == null) return true
 
       if (command !== Command.DeleteRange && !isCollapsed(state.cursor)) {

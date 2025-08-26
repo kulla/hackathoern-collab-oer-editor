@@ -17,6 +17,7 @@
     "js-beautify": "^1.15.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "y-webrtc": "^10.3.0",
     "yjs": "^13.6.27"
   },
   "devDependencies": {

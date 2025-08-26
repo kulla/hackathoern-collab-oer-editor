@@ -12,6 +12,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
 import { invariant, isEqual, takeWhile, zip } from 'es-toolkit'
 import * as Y from 'yjs'
+import { WebrtcProvider } from 'y-webrtc'
 import { DebugPanel } from './components/debug-panel'
 
 const initialContent: JSONValue<'root'> = [
@@ -1042,6 +1043,7 @@ const doc: { ymap?: Y.Map<unknown> } = {}
 function getEntries() {
   if (doc.ymap == null) {
     const ydoc = new Y.Doc()
+    new WebrtcProvider('editor', ydoc, { signaling: ['wss://localhost:4444'] })
     doc.ymap = ydoc.getMap('entries')
   }
 

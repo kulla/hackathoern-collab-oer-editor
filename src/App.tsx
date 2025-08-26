@@ -29,6 +29,8 @@ const initialContent: JSONValue<'root'> = [
 ]
 
 export default function App() {
+  console.log('Rerender')
+
   const { manager } = useStateManager('root', initialContent)
 
   const handleKeyDown = useCallback(
@@ -886,6 +888,8 @@ function useStateManager<T extends NodeType>(type: T, initial: JSONValue<T>) {
       return () => manager.removeUpdateListener(listener)
     },
     () => {
+      console.log(manager.state.updateCount)
+
       if (lastReturn.current.updateCount === manager.state.updateCount) {
         return lastReturn.current
       }
@@ -901,17 +905,33 @@ class StateManager<T extends NodeType = NodeType> {
   private readonly _state = new WritableState()
   private readonly rootKey: Key<T>
   private updateCallDepth = 0
+  private listener: (() => void)[] = []
+  private updateFunc
+  private lastUpdateCount
 
   constructor(type: T, initial: JSONValue<T>) {
-    this.rootKey = getHandler(type).insert(this._state, null, initial).key
+    this.rootKey =
+      this._state.entries.get('0:root') == null
+        ? getHandler(type).insert(this._state, null, initial).key
+        : ('0:root' as Key<T>)
+    this.lastUpdateCount = this._state.updateCount
+    this.updateFunc = () => {
+      if (this.lastUpdateCount !== this._state.updateCount) {
+        this.lastUpdateCount = this._state.updateCount
+
+        for (const l of this.listener) l()
+      }
+    }
   }
 
   addUpdateListener(listener: () => void): void {
-    this._state.addUpdateListener(listener)
+    this.listener.push(listener)
+    this._state.addUpdateListener(this.updateFunc)
   }
 
   removeUpdateListener(listener: () => void): void {
-    this._state.removeUpdateListener(listener)
+    this.listener = this.listener.filter((x) => x !== listener)
+    this._state.removeUpdateListener(this.updateFunc)
   }
 
   update<R>(updateFn: (state: WritableState) => R): R {
@@ -1017,13 +1037,22 @@ function getPathToRoot(state: ReadonlyState, point: Point): Path {
 
 // State management for an editor structure
 
+const doc: { ymap?: Y.Map<unknown> } = {}
+
+function getEntries() {
+  if (doc.ymap == null) {
+    const ydoc = new Y.Doc()
+    doc.ymap = ydoc.getMap('entries')
+  }
+
+  return doc.ymap
+}
+
 class ReadonlyState {
-  protected entries
+  entries: Y.Map<unknown>
 
   constructor() {
-    const ydoc = new Y.Doc()
-    this.entries = ydoc.getMap('entries')
-    this.entries.set('counter', 0)
+    this.entries = getEntries()
   }
 
   getEntry<T extends NodeType>(key: Key<T>): Entry<T> {
@@ -1043,7 +1072,7 @@ class ReadonlyState {
   }
 
   get updateCount() {
-    return this.entries.get('counter') as number
+    return (this.entries.get('counter') ?? 0) as number
   }
 }
 
@@ -1073,13 +1102,13 @@ class WritableState extends ReadonlyState {
     const entry = { type, key, parent, value }
 
     this.set(key, entry)
-    this.incCounter()
 
     return entry
   }
 
   incCounter() {
-    this.entries.set('counter', this.updateCount + 1)
+    const c = this.entries.get('counter') as number | null
+    this.entries.set('counter', (c ?? 0) + 1)
   }
 
   update<T extends NodeType>(
@@ -1097,7 +1126,6 @@ class WritableState extends ReadonlyState {
 
   setCursor(cursor: Cursor | null) {
     this.entries.set('cursor', cursor)
-    this.incCounter()
   }
 
   setCaret(point: Point) {
@@ -1106,7 +1134,6 @@ class WritableState extends ReadonlyState {
 
   private set<T extends NodeType>(key: Key<T>, entry: Entry<T>) {
     this.entries.set(key, entry as Entry)
-    this.incCounter()
   }
 
   private generateKey<T extends NodeType>(type: T): Key<T> {

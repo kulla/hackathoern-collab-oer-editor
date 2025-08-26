@@ -12,6 +12,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
 import { invariant, isEqual, takeWhile, zip } from 'es-toolkit'
 import { DebugPanel } from './components/debug-panel'
+import * as Y from 'yjs'
+
+const ydoc = new Y.Doc()
 
 const initialContent: JSONValue<'root'> = [
   { type: 'paragraph', value: 'Welcome this is an editor example.' },
@@ -614,7 +617,6 @@ const MultipleChoiceAnswerHandler: NodeHandler<'multipleChoiceAnswer'> = {
     const { isCorrect, answer } = value
 
     return (
-      // biome-ignore lint/a11y/noLabelWithoutControl: <explanation>
       <div id={key} key={key} data-key={key}>
         {BooleanHandler.render(state, state.getEntry(isCorrect))}
         {TextHandler.render(state, state.getEntry(answer))}
@@ -886,6 +888,8 @@ function useStateManager<T extends NodeType>(type: T, initial: JSONValue<T>) {
       return () => manager.removeUpdateListener(listener)
     },
     () => {
+      console.log(manager.state.updateCount)
+
       if (lastReturn.current.updateCount === manager.state.updateCount) {
         return lastReturn.current
       }
@@ -1021,7 +1025,7 @@ function getPathToRoot(state: ReadonlyState, point: Point): Path {
 // State management for an editor structure
 
 class ReadonlyState {
-  protected entries = new Map<Key, Entry>()
+  protected entries = ydoc.getMap()
   protected _cursor: Cursor | null = null
   protected _updateCount = 0
 
@@ -1034,7 +1038,7 @@ class ReadonlyState {
   }
 
   getEntries(): [Key, Entry][] {
-    return Array.from(this.entries.entries())
+    return Object.entries(this.entries.toJSON()) as [Key, Entry][]
   }
 
   get cursor(): Cursor | null {

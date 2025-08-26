@@ -16,7 +16,8 @@
     "es-toolkit": "^1.39.10",
     "js-beautify": "^1.15.4",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "yjs": "^13.6.27"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.2",

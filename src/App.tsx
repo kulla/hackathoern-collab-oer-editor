@@ -11,6 +11,7 @@ import {
 import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
 import { invariant, isEqual, takeWhile, zip } from 'es-toolkit'
+import { icons } from 'feather-icons'
 import { WebrtcProvider } from 'y-webrtc'
 import * as Y from 'yjs'
 import { DebugPanel } from './components/debug-panel'
@@ -129,6 +130,11 @@ export default function App() {
             }}
             className={'btn btn-accent'}
           >
+            <img
+              src={`data:image/svg+xml;utf8,${encodeURIComponent(icons['check-circle'].toSvg())}`}
+              className="inline mr-2"
+              alt=""
+            />
             Add Multiple Choice
           </button>
           <button
@@ -138,6 +144,11 @@ export default function App() {
             }}
             className={'btn btn-warning'}
           >
+            <img
+              src={`data:image/svg+xml;utf8,${encodeURIComponent(icons['align-left'].toSvg())}`}
+              className="inline mr-2"
+              alt=""
+            />
             Add Paragraph
           </button>
         </div>

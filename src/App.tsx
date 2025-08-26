@@ -11,10 +11,8 @@ import {
 import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
 import { invariant, isEqual, takeWhile, zip } from 'es-toolkit'
-import { DebugPanel } from './components/debug-panel'
 import * as Y from 'yjs'
-
-const ydoc = new Y.Doc()
+import { DebugPanel } from './components/debug-panel'
 
 const initialContent: JSONValue<'root'> = [
   { type: 'paragraph', value: 'Welcome this is an editor example.' },
@@ -888,8 +886,6 @@ function useStateManager<T extends NodeType>(type: T, initial: JSONValue<T>) {
       return () => manager.removeUpdateListener(listener)
     },
     () => {
-      console.log(manager.state.updateCount)
-
       if (lastReturn.current.updateCount === manager.state.updateCount) {
         return lastReturn.current
       }
@@ -1025,9 +1021,14 @@ function getPathToRoot(state: ReadonlyState, point: Point): Path {
 // State management for an editor structure
 
 class ReadonlyState {
-  protected entries = ydoc.getMap()
+  protected entries
   protected _cursor: Cursor | null = null
   protected _updateCount = 0
+
+  constructor() {
+    const ydoc = new Y.Doc()
+    this.entries = ydoc.getMap('entries')
+  }
 
   getEntry<T extends NodeType>(key: Key<T>): Entry<T> {
     const entry = this.entries.get(key) as Entry<T> | undefined

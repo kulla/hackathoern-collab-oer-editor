@@ -735,7 +735,15 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
     if (childKey === value.answers) return 'answers'
     throw new Error('Child not found')
   },
-  onCommand: {},
+  onCommand: {
+      deleteBackward() {
+        return { success: true }
+      },
+      deleteForward() {
+          return {success: true}
+      }
+
+  },
 }
 
 const ContentHandler: NodeHandler<'content'> = createArrayHandler('content')

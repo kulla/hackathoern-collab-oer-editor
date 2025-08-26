@@ -1022,7 +1022,6 @@ function getPathToRoot(state: ReadonlyState, point: Point): Path {
 
 class ReadonlyState {
   protected entries
-  protected _cursor: Cursor | null = null
   protected _updateCount = 0
 
   constructor() {
@@ -1043,7 +1042,7 @@ class ReadonlyState {
   }
 
   get cursor(): Cursor | null {
-    return this._cursor
+    return this.entries.get('cursor') as Cursor | null
   }
 
   get updateCount() {
@@ -1089,7 +1088,7 @@ class WritableState extends ReadonlyState {
   }
 
   setCursor(cursor: Cursor | null) {
-    this._cursor = cursor
+    this.entries.set('cursor', cursor)
     this._updateCount += 1
   }
 

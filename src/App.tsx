@@ -900,7 +900,6 @@ function useStateManager<T extends NodeType>(type: T, initial: JSONValue<T>) {
 class StateManager<T extends NodeType = NodeType> {
   private readonly _state = new WritableState()
   private readonly rootKey: Key<T>
-  private updateListeners: (() => void)[] = []
   private updateCallDepth = 0
 
   constructor(type: T, initial: JSONValue<T>) {
@@ -908,11 +907,11 @@ class StateManager<T extends NodeType = NodeType> {
   }
 
   addUpdateListener(listener: () => void): void {
-    this.updateListeners.push(listener)
+    this._state.addUpdateListener(listener)
   }
 
   removeUpdateListener(listener: () => void): void {
-    this.updateListeners = this.updateListeners.filter((l) => l !== listener)
+    this._state.removeUpdateListener(listener)
   }
 
   update<R>(updateFn: (state: WritableState) => R): R {
@@ -921,9 +920,7 @@ class StateManager<T extends NodeType = NodeType> {
     this.updateCallDepth -= 1
 
     if (this.updateCallDepth === 0) {
-      for (const listener of this.updateListeners) {
-        listener()
-      }
+      this._state.incCounter()
     }
     return result
   }
@@ -1022,11 +1019,11 @@ function getPathToRoot(state: ReadonlyState, point: Point): Path {
 
 class ReadonlyState {
   protected entries
-  protected _updateCount = 0
 
   constructor() {
     const ydoc = new Y.Doc()
     this.entries = ydoc.getMap('entries')
+    this.entries.set('counter', 0)
   }
 
   getEntry<T extends NodeType>(key: Key<T>): Entry<T> {
@@ -1046,12 +1043,20 @@ class ReadonlyState {
   }
 
   get updateCount() {
-    return this._updateCount
+    return this.entries.get('counter') as number
   }
 }
 
 class WritableState extends ReadonlyState {
   private lastKey = -1
+
+  addUpdateListener(listener: () => void) {
+    this.entries.observe(listener)
+  }
+
+  removeUpdateListener(listener: () => void) {
+    this.entries.unobserve(listener)
+  }
 
   insert<T extends NodeType>(arg: InsertArg<T, never>): Entry<T>
   insert<T extends NodeType>(arg: InsertArg<T, null>): Entry<T> | null
@@ -1068,9 +1073,13 @@ class WritableState extends ReadonlyState {
     const entry = { type, key, parent, value }
 
     this.set(key, entry)
-    this._updateCount += 1
+    this.incCounter()
 
     return entry
+  }
+
+  incCounter() {
+    this.entries.set('counter', this.updateCount + 1)
   }
 
   update<T extends NodeType>(
@@ -1082,14 +1091,13 @@ class WritableState extends ReadonlyState {
     const newEntry = { type, key, parent, value: newValue }
 
     this.set(key, newEntry)
-    this._updateCount += 1
 
     return newEntry
   }
 
   setCursor(cursor: Cursor | null) {
     this.entries.set('cursor', cursor)
-    this._updateCount += 1
+    this.incCounter()
   }
 
   setCaret(point: Point) {
@@ -1098,7 +1106,7 @@ class WritableState extends ReadonlyState {
 
   private set<T extends NodeType>(key: Key<T>, entry: Entry<T>) {
     this.entries.set(key, entry as Entry)
-    this._updateCount += 1
+    this.incCounter()
   }
 
   private generateKey<T extends NodeType>(type: T): Key<T> {

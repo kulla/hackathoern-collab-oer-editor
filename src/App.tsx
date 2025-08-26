@@ -614,10 +614,11 @@ const MultipleChoiceAnswerHandler: NodeHandler<'multipleChoiceAnswer'> = {
     const { isCorrect, answer } = value
 
     return (
-      <li id={key} key={key} data-key={key}>
+      // biome-ignore lint/a11y/noLabelWithoutControl: <explanation>
+      <div id={key} key={key} data-key={key}>
         {BooleanHandler.render(state, state.getEntry(isCorrect))}
-        <p>Answer: {TextHandler.render(state, state.getEntry(answer))}</p>
-      </li>
+        {TextHandler.render(state, state.getEntry(answer))}
+      </div>
     )
   },
   selectStart(state, { value }) {
@@ -686,8 +687,13 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
     const { task, answers } = value
 
     return (
-      <div id={key} key={key} data-key={key}>
-        <h4>Task</h4>
+      <div
+        id={key}
+        key={key}
+        data-key={key}
+        className="px-4 bg-lime-900 rounded-lg mb-4"
+      >
+        <h4>Tasks</h4>
         {ContentHandler.render(state, state.getEntry(task))}
         <h4>Answers</h4>
         {MultipleChoiceAnswersHandler.render(state, state.getEntry(answers))}

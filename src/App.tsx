@@ -1154,7 +1154,9 @@ const doc: { ymap?: Y.Map<unknown> } = {}
 function getEntries() {
   if (doc.ymap == null) {
     const ydoc = new Y.Doc()
-    new WebrtcProvider('editor', ydoc, { signaling: ['ws://localhost:32768'] })
+    new WebrtcProvider(window.location.hash || 'editor', ydoc, {
+      signaling: ['ws://localhost:32768'],
+    })
     doc.ymap = ydoc.getMap('entries')
   }
 

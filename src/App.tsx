@@ -112,6 +112,7 @@ export default function App() {
       <h1>Editor:</h1>
       <div className="flex flex-row gap-2 mb-4">
         <button
+          type="button"
           onClick={() => {
             manager.dispatchCommand(Command.AddMultipleChoice)
           }}
@@ -120,6 +121,7 @@ export default function App() {
           Add Multiple Choice
         </button>
         <button
+          type="button"
           onClick={() => {
             manager.dispatchCommand(Command.AddParagraph)
           }}

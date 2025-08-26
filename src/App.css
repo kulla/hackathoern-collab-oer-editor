@@ -12,3 +12,8 @@ span.text::after {
   /* Render &nbsp; as a non-breaking space so that the span does not collapse */
   content: "\0000A0";
 }
+
+p {
+  margin-top: 1em;
+  margin-bottom: 0.75em;
+}

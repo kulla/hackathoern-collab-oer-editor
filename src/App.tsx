@@ -110,35 +110,38 @@ export default function App() {
   return (
     <main className="prose p-10">
       <h1>Editor:</h1>
-      <div className="flex flex-row gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => {
-            manager.dispatchCommand(Command.AddMultipleChoice)
-          }}
-          className={'btn btn-outline btn-primary'}
+      <div className="rounded-2xl border-2 border-blue-800 px-4">
+        <article
+          className="outline-none"
+          contentEditable
+          suppressContentEditableWarning
+          spellCheck={false}
+          onKeyDown={handleKeyDown}
         >
-          Add Multiple Choice
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            manager.dispatchCommand(Command.AddParagraph)
-          }}
-          className={'btn btn-outline btn-primary'}
-        >
-          Add Paragraph
-        </button>
+          {manager.render()}
+        </article>
+
+        <div className="flex flex-row gap-2 mb-4  mt-8 border-t-2  border-t-blue-800 pt-4">
+          <button
+            type="button"
+            onClick={() => {
+              manager.dispatchCommand(Command.AddMultipleChoice)
+            }}
+            className={'btn btn-accent'}
+          >
+            Add Multiple Choice
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              manager.dispatchCommand(Command.AddParagraph)
+            }}
+            className={'btn btn-warning'}
+          >
+            Add Paragraph
+          </button>
+        </div>
       </div>
-      <article
-        className="rounded-xl border-2 px-4 outline-none max-w-3xl"
-        contentEditable
-        suppressContentEditableWarning
-        spellCheck={false}
-        onKeyDown={handleKeyDown}
-      >
-        {manager.render()}
-      </article>
       <DebugPanel
         labels={
           {
@@ -647,7 +650,12 @@ const MultipleChoiceAnswerHandler: NodeHandler<'multipleChoiceAnswer'> = {
     const { isCorrect, answer } = value
 
     return (
-      <div id={key} key={key} data-key={key}>
+      <div
+        id={key}
+        key={key}
+        data-key={key}
+        className="flex flex-row items-center mb-1"
+      >
         {BooleanHandler.render(manager, manager.state.getEntry(isCorrect))}
         {TextHandler.render(manager, manager.state.getEntry(answer))}
       </div>
@@ -723,11 +731,12 @@ const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
         id={key}
         key={key}
         data-key={key}
-        className="px-4 bg-lime-900 rounded-lg mb-4"
+        className="px-4 mt-4 bg-blue-50 py-2 rounded-lg shadow-md"
       >
-        <h4>Tasks</h4>
-        {ContentHandler.render(manager, manager.state.getEntry(task))}
-        <h4>Answers</h4>
+        <p className="font-medium font-sans">Quiz:</p>
+        <div className="font-bold">
+          {ContentHandler.render(manager, manager.state.getEntry(task))}
+        </div>
         {MultipleChoiceAnswersHandler.render(
           manager,
           manager.state.getEntry(answers),
@@ -800,7 +809,7 @@ const BooleanHandler: NodeHandler<'boolean'> = {
         data-key={key}
         type="checkbox"
         checked={value}
-        className="mr-2"
+        className="checkbox mr-2 checkbox-info"
         onChange={() => {
           manager.update((state) => {
             state.update(key, !value)

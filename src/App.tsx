@@ -110,6 +110,10 @@ export default function App() {
   return (
     <main className="prose p-10">
       <h1>Editor:</h1>
+        <div className="flex flex-row gap-2 mb-4">
+            <button onClick={() => {manager.dispatchCommand(Command.AddMultipleChoice)}} className={'btn btn-outline btn-primary'}>Add Multiple Choice</button>
+            <button onClick={() => {manager.dispatchCommand(Command.AddParagraph)}} className={'btn btn-outline btn-primary'}>Add Paragraph</button>
+        </div>
       <article
         className="rounded-xl border-2 px-4 outline-none max-w-3xl"
         contentEditable
@@ -756,7 +760,7 @@ const BooleanHandler: NodeHandler<'boolean'> = {
     type: 'boolean',
     emptyValue: false,
   }),
-  render(manager, { key, value }) {
+  render(manager: StateManager<"root">, { key, value }) {
     return (
       <input
         id={key}
@@ -802,7 +806,7 @@ interface NodeHandlerOf<T extends NodeType> {
   createEmpty(state: WritableState, parent: ParentKey): Entry<T>
 
   read(state: ReadonlyState, key: Key<T>): JSONValue<T>
-  render(manager: StateManager, node: Entry<T>): ReactNode
+  render(manager: StateManager<"root">, node: Entry<T>): ReactNode
   getIndexWithin(entry: Entry<T>, child: Key): Index<T>
 
   select(state: WritableState, node: Entry<T>, at: IndexPath<T>): void
@@ -883,6 +887,8 @@ enum Command {
   DeleteRange = 'deleteRange',
   DeleteForward = 'deleteForward',
   DeleteBackward = 'deleteBackward',
+  AddMultipleChoice = 'addMultipleChoice',
+  AddParagraph = 'addParagraph',
 }
 
 type CommandPayload<O extends Command> = O extends Command.InsertText
@@ -891,7 +897,7 @@ type CommandPayload<O extends Command> = O extends Command.InsertText
 
 // State manager
 
-function useStateManager<T extends NodeType>(type: T, initial: JSONValue<T>) {
+function useStateManager<T extends "root">(type: T, initial: JSONValue<T>) {
   const manager = useRef(new StateManager(type, initial)).current
   const lastReturn = useRef({ manager, updateCount: manager.state.updateCount })
 
@@ -915,7 +921,7 @@ function useStateManager<T extends NodeType>(type: T, initial: JSONValue<T>) {
   )
 }
 
-class StateManager<T extends NodeType = NodeType> {
+class StateManager<T extends "root"> {
   private readonly _state = new WritableState()
   private readonly rootKey: Key<T>
   private updateCallDepth = 0
@@ -977,6 +983,22 @@ class StateManager<T extends NodeType = NodeType> {
     ...payload: CommandPayload<C>
   ): boolean {
     return this.update((state) => {
+        if (command === Command.AddParagraph || command === Command.AddMultipleChoice) {
+            this.update((state) => {
+                const newElement : JSONValue<"paragraph" | "multipleChoice"> = command === Command.AddParagraph ? {type: "paragraph", value: "..."}
+                    : {
+                            type: 'multipleChoice',
+                            task: [{ type: 'paragraph', value: 'What is 2 + 2?' }],
+                            answers: [
+                                { type: 'multipleChoiceAnswer', isCorrect: false, answer: '3' },
+                                { type: 'multipleChoiceAnswer', isCorrect: true, answer: '4' },
+                                { type: 'multipleChoiceAnswer', isCorrect: false, answer: '5' },
+                            ],
+                        }
+                const key = getHandler(newElement.type).insert(state, this.rootKey, newElement).key
+                state.update(this.rootKey, (prev) => [...prev, key])
+            })
+        }
       if (state.cursor == null) return true
 
       if (command !== Command.DeleteRange && !isCollapsed(state.cursor)) {

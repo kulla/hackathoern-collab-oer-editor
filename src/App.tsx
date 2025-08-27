@@ -1,7 +1,6 @@
 import { html as beautifyHtml } from 'js-beautify'
 import {
   type KeyboardEvent,
-  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -10,9 +9,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
 import { isEqual } from 'es-toolkit'
 import { icons } from 'feather-icons'
-import { Command, type CommandPayload } from './command'
+import { Command } from './command'
 import { DebugPanel } from './components/debug-panel'
 import type { Index, JSONValue } from './nodes/types/node-description'
+import type { NodeHandler, NodeHandlerOf } from './nodes/types/node-handler'
 import { isType, type NodeType } from './nodes/types/node-types'
 import { getCursor, type IndexPath } from './selection'
 import {
@@ -20,12 +20,9 @@ import {
   type EntryValue,
   isKey,
   type Key,
-  type ParentKey,
   parseType,
-  type ReadonlyState,
   type StateManager,
   useStateManager,
-  type WritableState,
 } from './state'
 
 const initialContent: JSONValue<'root'> = [
@@ -865,34 +862,4 @@ export function getHandler<T extends NodeType>(
   const type: T = isType(arg) ? arg : isKey(arg) ? parseType(arg) : arg.type
 
   return handlers[type]
-}
-
-type NodeHandler<T extends NodeType> = { [S in T]: NodeHandlerOf<S> }[T]
-interface NodeHandlerOf<T extends NodeType> {
-  insert(state: WritableState, parent: ParentKey, node: JSONValue<T>): Entry<T>
-  createEmpty(state: WritableState, parent: ParentKey): Entry<T>
-
-  read(state: ReadonlyState, key: Key<T>): JSONValue<T>
-  render(manager: StateManager<'root'>, node: Entry<T>): ReactNode
-  getIndexWithin(entry: Entry<T>, child: Key): Index<T>
-
-  select(state: WritableState, node: Entry<T>, at: IndexPath<T>): void
-  selectStart(state: WritableState, node: Entry<T>): void
-  selectEnd(state: WritableState, node: Entry<T>): void
-  split(
-    state: WritableState,
-    node: Entry<T>,
-    at: IndexPath<T>,
-    parent?: ParentKey,
-  ): [Entry<T>, Entry<T>] | null
-  merge(state: WritableState, node: Entry<T>, withNode: Entry<T>): true | null
-  onCommand: {
-    [C in Command]?: (
-      state: WritableState,
-      node: Entry<T>,
-      start: IndexPath<T>,
-      end: IndexPath<T>,
-      ...payload: CommandPayload<C>
-    ) => { success: boolean } | null
-  }
 }

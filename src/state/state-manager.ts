@@ -1,7 +1,7 @@
 import { takeWhile, zip } from 'es-toolkit'
 import { type ReactNode, useRef, useSyncExternalStore } from 'react'
-import { getHandler } from '../App'
 import { Command, type CommandPayload } from '../command'
+import { getHandler } from '../nodes/handler'
 import type { JSONValue } from '../nodes/types/node-description'
 import {
   type IndexPath,

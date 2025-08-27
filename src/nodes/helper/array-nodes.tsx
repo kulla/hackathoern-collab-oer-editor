@@ -1,6 +1,6 @@
-import { getHandler } from '../../App'
 import type { IndexPath } from '../../selection'
 import type { EntryValue, Key } from '../../state'
+import { getHandler } from '../handler'
 import { ParagraphHandler } from '../paragraph'
 import type { Index, JSONValue } from '../types/node-description'
 import type { NodeHandler } from '../types/node-handler'

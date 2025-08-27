@@ -11,26 +11,9 @@ import { isEqual } from 'es-toolkit'
 import { icons } from 'feather-icons'
 import { Command } from './command'
 import { DebugPanel } from './components/debug-panel'
-import { ContentHandler, RootHandler } from './nodes/content'
-import {
-  BooleanHandler,
-  MultipleChoiceAnswerHandler,
-  MultipleChoiceAnswersHandler,
-  MultipleChoiceHandler,
-} from './nodes/multiple-choice'
-import { ParagraphHandler } from './nodes/paragraph'
-import { TextHandler } from './nodes/text'
 import type { JSONValue } from './nodes/types/node-description'
-import type { NodeHandler, NodeHandlerOf } from './nodes/types/node-handler'
-import { isType, type NodeType } from './nodes/types/node-types'
 import { getCursor } from './selection'
-import {
-  type Entry,
-  isKey,
-  type Key,
-  parseType,
-  useStateManager,
-} from './state'
+import { useStateManager } from './state'
 
 const initialContent: JSONValue<'root'> = [
   { type: 'paragraph', value: 'Welcome this is an editor example.' },
@@ -202,24 +185,4 @@ export default function App() {
       />
     </main>
   )
-}
-
-const handlers: { [T in NodeType]: NodeHandler<T> } = {
-  root: RootHandler,
-  content: ContentHandler,
-  paragraph: ParagraphHandler,
-  text: TextHandler,
-  multipleChoice: MultipleChoiceHandler,
-  multipleChoiceAnswer: MultipleChoiceAnswerHandler,
-  multipleChoiceAnswers: MultipleChoiceAnswersHandler,
-  boolean: BooleanHandler,
-}
-
-export function getHandler<T extends NodeType>(
-  arg: T | Key<T> | Entry<T>,
-): NodeHandlerOf<T> {
-  // TODO: Remove type assertion when possible
-  const type: T = isType(arg) ? arg : isKey(arg) ? parseType(arg) : arg.type
-
-  return handlers[type]
 }

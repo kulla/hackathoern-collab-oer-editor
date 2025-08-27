@@ -9,7 +9,7 @@ export default defineConfig({
     title: 'Editor with Plugins',
   },
   output: {
-    assetPrefix: '/2025-08-14-editor-with-plugins/',
+    assetPrefix: '/hackathoern-collab-oer-editor/',
     sourceMap: {
       js: mode === 'development' ? 'eval-source-map' : 'source-map',
       css: true,

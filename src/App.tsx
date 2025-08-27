@@ -11,6 +11,7 @@ import { isEqual } from 'es-toolkit'
 import { icons } from 'feather-icons'
 import { Command } from './command'
 import { DebugPanel } from './components/debug-panel'
+import { createPrimitiveHandler } from './nodes/helper'
 import type { Index, JSONValue } from './nodes/types/node-description'
 import type { NodeHandler, NodeHandlerOf } from './nodes/types/node-handler'
 import { isType, type NodeType } from './nodes/types/node-types'
@@ -405,49 +406,6 @@ type ArrayNodes =
       type: 'multipleChoiceAnswers'
       childHandler: NodeHandler<'multipleChoiceAnswer'>
     }
-
-// TODO: Automatically check which types T can be
-function createPrimitiveHandler<T extends 'text' | 'boolean'>({
-  type,
-  emptyValue,
-}: {
-  type: T
-  emptyValue: EntryValue<T>
-}): NodeHandler<T> {
-  return {
-    insert(state, parent, value) {
-      return state.insert({ type, parent, createValue: () => value })
-    },
-    createEmpty(state, parent) {
-      return state.insert({ type, parent, createValue: () => emptyValue })
-    },
-    read(state, key) {
-      return state.getEntry(key).value
-    },
-    selectStart(state, { key }) {
-      state.setCaret({ key })
-    },
-    selectEnd(state, { key }) {
-      state.setCaret({ key })
-    },
-    select(state, { key }) {
-      state.setCaret({ key })
-    },
-    merge() {
-      return null
-    },
-    split() {
-      return null
-    },
-    getIndexWithin() {
-      throw new Error('Primitive nodes cannot have children')
-    },
-    onCommand: {},
-    render() {
-      throw new Error('not implemented yet')
-    },
-  }
-}
 
 const TextHandler: NodeHandler<'text'> = {
   ...createPrimitiveHandler({ type: 'text', emptyValue: '' }),

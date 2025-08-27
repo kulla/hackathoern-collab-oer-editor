@@ -2,7 +2,7 @@
   "name": "2025-08-14-editor-with-plugins",
   "version": "1.0.0",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "build": "rsbuild build",

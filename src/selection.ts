@@ -4,6 +4,21 @@ import type { NodeType } from './nodes/node-types'
 import type { Entry } from './state/entry'
 import { isKey, isKeyType, type Key } from './state/key'
 
+export type Path = PathFrame[]
+type PathFrame = { entry: Entry; index?: Index }
+
+export type IndexPath<T extends NodeType> = [Index<T>, ...Index[]] | []
+
+export interface Cursor {
+  start: Point
+  end: Point
+}
+
+export interface Point {
+  key: Key
+  index?: number
+}
+
 export function getCursor(selection: Selection | null): Cursor | null {
   if (selection == null || selection.rangeCount === 0) return null
 
@@ -38,18 +53,4 @@ export function getPoint(
 
 export function isCollapsed({ start, end }: Cursor): boolean {
   return isEqual(start, end)
-}
-
-export type Path = PathFrame[]
-type PathFrame = { entry: Entry; index?: Index }
-export type IndexPath<T extends NodeType> = [Index<T>, ...Index[]] | []
-
-export interface Cursor {
-  start: Point
-  end: Point
-}
-
-export interface Point {
-  key: Key
-  index?: number
 }

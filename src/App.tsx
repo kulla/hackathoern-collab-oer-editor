@@ -12,6 +12,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import './App.css'
 import { isEqual, takeWhile, zip } from 'es-toolkit'
 import { icons } from 'feather-icons'
+import { Command, type CommandPayload } from './command'
 import { DebugPanel } from './components/debug-panel'
 import type { Index, JSONValue } from './nodes/node-description'
 import { isType, type NodeType } from './nodes/node-types'
@@ -901,22 +902,6 @@ interface NodeHandlerOf<T extends NodeType> {
     ) => { success: boolean } | null
   }
 }
-
-// Operations for the editor structure
-
-enum Command {
-  InsertText = 'insertText',
-  InsertNewElement = 'insertNewElement',
-  DeleteRange = 'deleteRange',
-  DeleteForward = 'deleteForward',
-  DeleteBackward = 'deleteBackward',
-  AddMultipleChoice = 'addMultipleChoice',
-  AddParagraph = 'addParagraph',
-}
-
-type CommandPayload<O extends Command> = O extends Command.InsertText
-  ? [string]
-  : []
 
 // State manager
 

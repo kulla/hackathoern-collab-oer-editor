@@ -15,7 +15,7 @@ import { icons } from 'feather-icons'
 import { WebrtcProvider } from 'y-webrtc'
 import * as Y from 'yjs'
 import { DebugPanel } from './components/debug-panel'
-import type { NodeType } from './nodes/node-types'
+import { isType, type NodeType } from './nodes/node-types'
 
 const initialContent: JSONValue<'root'> = [
   { type: 'paragraph', value: 'Welcome this is an editor example.' },
@@ -1281,10 +1281,6 @@ type Key<T extends NodeType = NodeType> = `${number}:${T}`
 
 function isKeyType<T extends NodeType>(type: T, key: Key): key is Key<T> {
   return parseType(key) === type
-}
-
-function isType(value: unknown): value is NodeType {
-  return typeof value === 'string' && Object.keys(handlers).includes(value)
 }
 
 function isKey(value: unknown): value is Key {

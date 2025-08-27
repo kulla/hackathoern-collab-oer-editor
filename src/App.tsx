@@ -15,6 +15,7 @@ import { icons } from 'feather-icons'
 import { WebrtcProvider } from 'y-webrtc'
 import * as Y from 'yjs'
 import { DebugPanel } from './components/debug-panel'
+import type { NodeType } from './nodes/node-types'
 
 const initialContent: JSONValue<'root'> = [
   { type: 'paragraph', value: 'Welcome this is an editor example.' },
@@ -1348,16 +1349,3 @@ interface PrimitiveNode<C extends boolean | number | string> {
   jsonValue: C
   index: never
 }
-
-/*
- * Complete list of types used in the editor.
- */
-type NodeType =
-  | 'content'
-  | 'paragraph'
-  | 'text'
-  | 'multipleChoice'
-  | 'root'
-  | 'multipleChoiceAnswers'
-  | 'multipleChoiceAnswer'
-  | 'boolean'

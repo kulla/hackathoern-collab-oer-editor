@@ -7,22 +7,16 @@
 
 ## Get started
 
+Start the local signalling server so that the peers can connect to each other:
+
+```bash
+./start_server.sh
+```
+
 Start the dev server:
 
 ```bash
 bun dev
-```
-
-Build the app for production:
-
-```bash
-bun run build
-```
-
-Preview the production build locally:
-
-```bash
-bun preview
 ```
 
 ## Maintenance

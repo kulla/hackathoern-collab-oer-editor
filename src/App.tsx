@@ -15,13 +15,10 @@ import { icons } from 'feather-icons'
 import { WebrtcProvider } from 'y-webrtc'
 import * as Y from 'yjs'
 import { DebugPanel } from './components/debug-panel'
-import type {
-  Index,
-  JSONValue,
-  NodeDescription,
-} from './nodes/node-description'
+import type { Index, JSONValue } from './nodes/node-description'
 import { isType, type NodeType } from './nodes/node-types'
 import { isKey, isKeyType, type Key, type ParentKey, parseType } from './state'
+import type { Entry, EntryValue } from './state/entry'
 
 const initialContent: JSONValue<'root'> = [
   { type: 'paragraph', value: 'Welcome this is an editor example.' },
@@ -1270,14 +1267,3 @@ interface InsertArg<T extends NodeType, R> {
   parent: ParentKey
   createValue: (key: Key<T>) => EntryValue<T> | R
 }
-
-// Description for the internal structure of the editor
-
-type Entry<T extends NodeType = NodeType> = { [S in T]: EntryOf<S> }[T]
-interface EntryOf<T extends NodeType> {
-  type: T
-  key: Key<T>
-  parent: ParentKey
-  value: EntryValue<T>
-}
-type EntryValue<T extends NodeType> = NodeDescription[T]['entryValue']

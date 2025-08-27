@@ -17,8 +17,15 @@ import * as Y from 'yjs'
 import { DebugPanel } from './components/debug-panel'
 import type { Index, JSONValue } from './nodes/node-description'
 import { isType, type NodeType } from './nodes/node-types'
-import { isKey, isKeyType, type Key, type ParentKey, parseType } from './state'
-import type { Entry, EntryValue } from './state/entry'
+import {
+  type Entry,
+  type EntryValue,
+  isKey,
+  isKeyType,
+  type Key,
+  type ParentKey,
+  parseType,
+} from './state'
 
 const initialContent: JSONValue<'root'> = [
   { type: 'paragraph', value: 'Welcome this is an editor example.' },

@@ -19,6 +19,10 @@ Start the dev server:
 bun dev
 ```
 
+## Screencast of the prototype
+
+https://github.com/user-attachments/assets/45047a54-6135-477b-af81-a47db190a106
+
 ## Maintenance
 
 Update dependencies:

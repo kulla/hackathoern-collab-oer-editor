@@ -16,10 +16,16 @@ import { DebugPanel } from './components/debug-panel'
 import type { Index, JSONValue } from './nodes/node-description'
 import { isType, type NodeType } from './nodes/node-types'
 import {
+  getCursor,
+  type IndexPath,
+  isCollapsed,
+  type Path,
+  type Point,
+} from './selection'
+import {
   type Entry,
   type EntryValue,
   isKey,
-  isKeyType,
   type Key,
   type ParentKey,
   parseType,
@@ -894,55 +900,6 @@ interface NodeHandlerOf<T extends NodeType> {
       ...payload: CommandPayload<C>
     ) => { success: boolean } | null
   }
-}
-
-// Selection
-
-function getCursor(selection: Selection | null): Cursor | null {
-  if (selection == null || selection.rangeCount === 0) return null
-
-  const range = selection.getRangeAt(0)
-
-  const startPoint = getPoint(range.startContainer, range.startOffset)
-  const endPoint = getPoint(range.endContainer, range.endOffset)
-
-  if (startPoint == null || endPoint == null) return null
-
-  return { start: startPoint, end: endPoint }
-}
-
-function getPoint(node: Node | null, offset: number | null): Point | null {
-  if (node == null) return null
-
-  const htmlNode = node instanceof HTMLElement ? node : node.parentElement
-
-  if (htmlNode == null) return null
-
-  const { key } = htmlNode.dataset
-
-  if (!isKey(key)) return null
-
-  return isKeyType('text', key) && offset != null
-    ? { key, index: offset }
-    : { key }
-}
-
-function isCollapsed({ start, end }: Cursor): boolean {
-  return isEqual(start, end)
-}
-
-type Path = PathFrame[]
-type PathFrame = { entry: Entry; index?: Index }
-type IndexPath<T extends NodeType> = [Index<T>, ...Index[]] | []
-
-export interface Cursor {
-  start: Point
-  end: Point
-}
-
-export interface Point {
-  key: Key
-  index?: number
 }
 
 // Operations for the editor structure

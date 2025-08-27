@@ -1,8 +1,8 @@
 import { invariant } from 'es-toolkit'
 import { WebrtcProvider } from 'y-webrtc'
 import * as Y from 'yjs'
-import type { Cursor, Point } from '../App'
 import type { NodeType } from '../nodes/node-types'
+import type { Cursor, Point } from '../selection'
 import type { Entry, EntryValue } from './entry'
 import type { Key, ParentKey } from './key'
 

@@ -1,4 +1,4 @@
-import type { Key } from '../state/key'
+import type { Key } from '../../state/key'
 import type { NodeType } from './node-types'
 
 export type Index<T extends NodeType = NodeType> = T extends 'text'

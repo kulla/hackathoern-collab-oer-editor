@@ -1,5 +1,5 @@
-import type { NodeDescription } from '../nodes/node-description'
-import type { NodeType } from '../nodes/node-types'
+import type { NodeDescription } from '../nodes/types/node-description'
+import type { NodeType } from '../nodes/types/node-types'
 import type { Key, ParentKey } from './key'
 
 export type Entry<T extends NodeType = NodeType> = { [S in T]: EntryOf<S> }[T]

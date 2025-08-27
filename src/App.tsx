@@ -12,8 +12,8 @@ import { isEqual } from 'es-toolkit'
 import { icons } from 'feather-icons'
 import { Command, type CommandPayload } from './command'
 import { DebugPanel } from './components/debug-panel'
-import type { Index, JSONValue } from './nodes/node-description'
-import { isType, type NodeType } from './nodes/node-types'
+import type { Index, JSONValue } from './nodes/types/node-description'
+import { isType, type NodeType } from './nodes/types/node-types'
 import { getCursor, type IndexPath } from './selection'
 import {
   type Entry,

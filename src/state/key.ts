@@ -1,4 +1,4 @@
-import { isType, type NodeType } from '../nodes/node-types'
+import { isType, type NodeType } from '../nodes/types/node-types'
 
 export type ParentKey = Key | null
 export type Key<T extends NodeType = NodeType> = `${number}:${T}`

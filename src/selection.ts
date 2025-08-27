@@ -1,6 +1,6 @@
 import { isEqual } from 'es-toolkit'
-import type { Index } from './nodes/node-description'
-import type { NodeType } from './nodes/node-types'
+import type { Index } from './nodes/types/node-description'
+import type { NodeType } from './nodes/types/node-types'
 import type { Entry } from './state/entry'
 import { isKey, isKeyType, type Key } from './state/key'
 

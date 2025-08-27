@@ -16,6 +16,7 @@ import { WebrtcProvider } from 'y-webrtc'
 import * as Y from 'yjs'
 import { DebugPanel } from './components/debug-panel'
 import { isType, type NodeType } from './nodes/node-types'
+import { isKey, isKeyType, type Key, type ParentKey, parseType } from './state'
 
 const initialContent: JSONValue<'root'> = [
   { type: 'paragraph', value: 'Welcome this is an editor example.' },
@@ -1275,30 +1276,6 @@ interface EntryOf<T extends NodeType> {
   value: EntryValue<T>
 }
 type EntryValue<T extends NodeType> = NodeDescription[T]['entryValue']
-
-type ParentKey = Key | null
-type Key<T extends NodeType = NodeType> = `${number}:${T}`
-
-function isKeyType<T extends NodeType>(type: T, key: Key): key is Key<T> {
-  return parseType(key) === type
-}
-
-function isKey(value: unknown): value is Key {
-  if (typeof value !== 'string') return false
-
-  const indexOfSeparator = value.indexOf(':')
-
-  return (
-    indexOfSeparator >= 0 &&
-    !Number.isNaN(Number.parseInt(value.slice(0, indexOfSeparator), 10)) &&
-    isType(value.slice(indexOfSeparator + 1))
-  )
-}
-
-function parseType<T extends NodeType>(key: Key<T>): T {
-  const indexOfSeparator = key.indexOf(':')
-  return key.slice(indexOfSeparator + 1) as T
-}
 
 type Index<T extends NodeType = NodeType> = T extends 'text'
   ? number

@@ -9,4 +9,5 @@ interface EntryOf<T extends NodeType> {
   parent: ParentKey
   value: EntryValue<T>
 }
+
 export type EntryValue<T extends NodeType> = NodeDescription[T]['entryValue']

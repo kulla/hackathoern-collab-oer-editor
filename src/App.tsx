@@ -11,7 +11,8 @@ import { isEqual } from 'es-toolkit'
 import { icons } from 'feather-icons'
 import { Command } from './command'
 import { DebugPanel } from './components/debug-panel'
-import { createPrimitiveHandler, createWrappedHandler } from './nodes/helper'
+import { createPrimitiveHandler } from './nodes/helper'
+import { ParagraphHandler } from './nodes/paragraph'
 import { TextHandler } from './nodes/text'
 import type { Index, JSONValue } from './nodes/types/node-description'
 import type { NodeHandler, NodeHandlerOf } from './nodes/types/node-handler'
@@ -407,20 +408,6 @@ type ArrayNodes =
       type: 'multipleChoiceAnswers'
       childHandler: NodeHandler<'multipleChoiceAnswer'>
     }
-
-const ParagraphHandler: NodeHandler<'paragraph'> = {
-  ...createWrappedHandler<{ type: 'paragraph'; childType: 'text' }>({
-    type: 'paragraph',
-    childHandler: TextHandler,
-  }),
-  render(manager, { key, value }) {
-    return (
-      <p id={key} key={key} data-key={key}>
-        {TextHandler.render(manager, manager.state.getEntry(value))}
-      </p>
-    )
-  },
-}
 
 const MultipleChoiceAnswerHandler: NodeHandler<'multipleChoiceAnswer'> = {
   insert(state, parent, { isCorrect, answer }) {

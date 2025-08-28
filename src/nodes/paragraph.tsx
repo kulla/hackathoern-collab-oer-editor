@@ -1,4 +1,4 @@
-import { createWrappedHandler } from './helper'
+import { createWrappedHandler } from './helper/wrapped-nodes'
 import { TextHandler } from './text'
 import type { NodeHandler } from './types/node-handler'
 

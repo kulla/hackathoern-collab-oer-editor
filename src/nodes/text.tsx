@@ -1,4 +1,4 @@
-import { createPrimitiveHandler } from './helper'
+import { createPrimitiveHandler } from './helper/primitive-nodes'
 import type { NodeHandler } from './types/node-handler'
 
 export const TextHandler: NodeHandler<'text'> = {

@@ -120,7 +120,7 @@ export const MultipleChoiceHandler: NodeHandler<'multipleChoice'> = {
         id={key}
         key={key}
         data-key={key}
-        className="px-4 mt-4 bg-blue-50 py-2 rounded-lg shadow-md"
+        className="card bg-base-300 text-base-content p-4 mb-4"
       >
         <p className="font-medium font-sans">QUIZ</p>
         <div className="font-bold">

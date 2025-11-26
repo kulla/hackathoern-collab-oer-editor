@@ -1,4 +1,6 @@
-# Experiment to implement a simple editor with a plugin system
+# Experiment to implement a collaborative editor for educational materials
+
+This is a prototype for a collaborative editor for educational materials using CRDTs with [Yjs](https://yjs.dev/). It was developed for and at the [2. HackathOERn in Weimar](https://edu-sharing-network.org/projekt-hackathoern/) in which software solutions for a better OER infrastructure were developed ([OER = Open educational resources](https://en.wikipedia.org/wiki/Open_educational_resources)).
 
 ## Setup
 

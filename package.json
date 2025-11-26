@@ -26,7 +26,7 @@
     "@rsbuild/core": "^1.5.13",
     "@rsbuild/plugin-react": "^1.4.1",
     "@tailwindcss/postcss": "^4.1.12",
-    "@tailwindcss/typography": "^0.5.16",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/feather-icons": "^4.29.4",
     "@types/js-beautify": "^1.14.3",
     "@types/react": "^19.2.2",
